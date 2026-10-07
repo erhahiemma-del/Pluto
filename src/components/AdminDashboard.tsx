@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   ResponsiveContainer,
   BarChart,
@@ -24,7 +24,6 @@ import {
   Search,
   Filter,
   Download,
-  Database,
   Check,
   FileSpreadsheet
 } from 'lucide-react';
@@ -65,21 +64,38 @@ export const AdminDashboard = ({ onBackToWizard, onBackToHome }: AdminDashboardP
   const [cards, setCards] = useState<CardRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [seeding, setSeeding] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedIndustryFilter, setSelectedIndustryFilter] = useState('ALL');
   const [exportSuccess, setExportSuccess] = useState(false);
   const [exportLedgerSuccess, setExportLedgerSuccess] = useState(false);
 
-  const fetchCampaignData = () => {
+  const [adminToken, setAdminToken] = useState<string>(() => {
+    try { return sessionStorage.getItem('pluto_admin_token') || ''; } catch { return ''; }
+  });
+  const [tokenInput, setTokenInput] = useState('');
+  const [loadError, setLoadError] = useState('');
+
+  const fetchCampaignData = async (token: string = adminToken) => {
+    if (!token) {
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
     try {
-      const saved = localStorage.getItem('pluto_campaign_submissions');
-      const localCards = saved ? JSON.parse(saved) : [];
-      const sample = getDefaultSampleData();
-      const combined = [...localCards, ...sample];
-      setCards(combined);
+      const res = await fetch('/api/admin/cards', { headers: { 'x-admin-token': token } });
+      if (res.status === 401) {
+        try { sessionStorage.removeItem('pluto_admin_token'); } catch {}
+        setAdminToken('');
+        setLoadError('That access code was not accepted.');
+        return;
+      }
+      if (!res.ok) throw new Error(`Status ${res.status}`);
+      const json = await res.json();
+      setCards(Array.isArray(json.cards) ? json.cards : []);
+      setLoadError('');
     } catch (err) {
-      setCards(getDefaultSampleData());
+      console.warn('Failed to load campaign data:', err);
+      setLoadError('Could not load campaign data. Please try again.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -95,17 +111,14 @@ export const AdminDashboard = ({ onBackToWizard, onBackToHome }: AdminDashboardP
     fetchCampaignData();
   };
 
-  const handleSeedSampleData = () => {
-    setSeeding(true);
-    try {
-      const sample = getDefaultSampleData();
-      localStorage.setItem('pluto_campaign_submissions', JSON.stringify(sample));
-      fetchCampaignData();
-    } catch (e) {
-      console.error('Failed to seed sample data:', e);
-    } finally {
-      setSeeding(false);
-    }
+  const handleSubmitToken = (e: React.FormEvent) => {
+    e.preventDefault();
+    const t = tokenInput.trim();
+    if (!t) return;
+    try { sessionStorage.setItem('pluto_admin_token', t); } catch {}
+    setAdminToken(t);
+    setLoading(true);
+    fetchCampaignData(t);
   };
 
   // Metrics Computations
@@ -333,6 +346,32 @@ export const AdminDashboard = ({ onBackToWizard, onBackToHome }: AdminDashboardP
     URL.revokeObjectURL(url);
   };
 
+  if (!adminToken) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4">
+        <form onSubmit={handleSubmitToken} className="w-full max-w-sm bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-4">
+          <h1 className="text-lg font-bold text-slate-900">Campaign dashboard</h1>
+          <p className="text-sm text-slate-600">Enter the admin access code to view campaign submissions.</p>
+          <input
+            type="password"
+            value={tokenInput}
+            onChange={(e) => setTokenInput(e.target.value)}
+            className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm"
+            placeholder="Access code"
+            autoFocus
+          />
+          {loadError && <p className="text-xs text-rose-600">{loadError}</p>}
+          <button type="submit" className="w-full px-4 py-2 bg-teal-700 hover:bg-teal-800 text-white text-sm font-semibold rounded-xl">
+            View dashboard
+          </button>
+          <button type="button" onClick={onBackToHome || onBackToWizard} className="w-full text-xs text-slate-500 hover:text-slate-700">
+            Back
+          </button>
+        </form>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fadeIn">
       {/* Top Header Bar */}
@@ -379,15 +418,6 @@ export const AdminDashboard = ({ onBackToWizard, onBackToHome }: AdminDashboardP
             <span>Download CSV Report</span>
           </button>
 
-          <button
-            onClick={handleSeedSampleData}
-            disabled={seeding}
-            className="px-3.5 py-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold flex items-center space-x-1.5 transition-colors shadow-xs"
-            title="Add sample campaign records to Firestore"
-          >
-            <Database className="w-3.5 h-3.5 text-slate-500" />
-            <span>{seeding ? 'Seeding...' : 'Seed Sample Data'}</span>
-          </button>
 
           <button
             onClick={handleRefresh}
@@ -808,147 +838,3 @@ export const AdminDashboard = ({ onBackToWizard, onBackToHome }: AdminDashboardP
 };
 
 // Fallback baseline realistic campaign metrics for initial state
-function getDefaultSampleData(): CardRecord[] {
-  return [
-    {
-      id: 'demo-1',
-      recipientName: 'Babatunde Fashola',
-      relationship: 'Director',
-      creatorFirstName: 'Emmanuel',
-      creatorLastName: 'Erhahi',
-      creatorCompany: 'VerifyMe Nigeria',
-      creatorIndustry: 'Fintech / Payments',
-      creatorEmail: 'emmanuel@verifyme.ng',
-      creatorJobTitle: 'Senior Marketing Manager',
-      selectedTraits: ['Believed in my potential', 'Challenged me to grow', 'A true people leader'],
-      marketingConsent: true,
-      createdAt: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
-    },
-    {
-      id: 'demo-2',
-      recipientName: 'Mitchell Elegbe',
-      relationship: 'Mentor',
-      creatorFirstName: 'Tobi',
-      creatorLastName: 'Adeyemi',
-      creatorCompany: 'Interswitch',
-      creatorIndustry: 'Fintech / Payments',
-      creatorEmail: 'tobi.adeyemi@interswitchgroup.com',
-      creatorJobTitle: 'Solutions Architect',
-      selectedTraits: ['Opened new opportunities', 'Gave me my first opportunity'],
-      marketingConsent: true,
-      createdAt: new Date(Date.now() - 1000 * 60 * 120).toISOString(),
-    },
-    {
-      id: 'demo-3',
-      recipientName: 'Herbert Wigwe',
-      relationship: 'Director',
-      creatorFirstName: 'Chidinma',
-      creatorLastName: 'Okeke',
-      creatorCompany: 'Access Holdings',
-      creatorIndustry: 'Banking',
-      creatorEmail: 'chidinma.okeke@accessbankplc.com',
-      creatorJobTitle: 'Corporate Strategy Manager',
-      selectedTraits: ['Challenged me to grow', 'Believed in my potential'],
-      marketingConsent: true,
-      createdAt: new Date(Date.now() - 1000 * 60 * 240).toISOString(),
-    },
-    {
-      id: 'demo-4',
-      recipientName: 'Shola Akinlade',
-      relationship: 'Manager',
-      creatorFirstName: 'David',
-      creatorLastName: 'Kuti',
-      creatorCompany: 'Paystack',
-      creatorIndustry: 'Fintech / Payments',
-      creatorEmail: 'david.kuti@paystack.com',
-      creatorJobTitle: 'Software Engineer',
-      selectedTraits: ['Supported me when it mattered', 'Taught me something valuable'],
-      marketingConsent: false,
-      createdAt: new Date(Date.now() - 1000 * 60 * 360).toISOString(),
-    },
-    {
-      id: 'demo-5',
-      recipientName: 'Iyinoluwa Aboyeji',
-      relationship: 'Mentor',
-      creatorFirstName: 'Kelechi',
-      creatorLastName: 'Nwosu',
-      creatorCompany: 'Future Africa',
-      creatorIndustry: 'Technology',
-      creatorEmail: 'kelechi@future.africa',
-      creatorJobTitle: 'Investment Associate',
-      selectedTraits: ['Opened new opportunities', 'Believed in my potential'],
-      marketingConsent: true,
-      createdAt: new Date(Date.now() - 1000 * 60 * 480).toISOString(),
-    },
-    {
-      id: 'demo-6',
-      recipientName: 'Jim Ovia',
-      relationship: 'Former Employer',
-      creatorFirstName: 'Olumide',
-      creatorLastName: 'Soyombo',
-      creatorCompany: 'Zenith Bank',
-      creatorIndustry: 'Banking',
-      creatorEmail: 'olumide.s@zenithbank.com',
-      creatorJobTitle: 'VP Commercial Banking',
-      selectedTraits: ['Gave me my first opportunity', 'A true people leader'],
-      marketingConsent: true,
-      createdAt: new Date(Date.now() - 1000 * 60 * 700).toISOString(),
-    },
-    {
-      id: 'demo-7',
-      recipientName: 'Tayo Oviosu',
-      relationship: 'First Boss',
-      creatorFirstName: 'Fatima',
-      creatorLastName: 'Aliyu',
-      creatorCompany: 'Paga',
-      creatorIndustry: 'Fintech / Payments',
-      creatorEmail: 'fatima.aliyu@paga.com',
-      creatorJobTitle: 'Operations Manager',
-      selectedTraits: ['Challenged me to grow', 'Supported me when it mattered'],
-      marketingConsent: true,
-      createdAt: new Date(Date.now() - 1000 * 60 * 950).toISOString(),
-    },
-    {
-      id: 'demo-8',
-      recipientName: 'Chuka Ofili',
-      relationship: 'Colleague',
-      creatorFirstName: 'Blessing',
-      creatorLastName: 'Effiong',
-      creatorCompany: 'PwC Nigeria',
-      creatorIndustry: 'Professional Services',
-      creatorEmail: 'blessing.effiong@pwc.com',
-      creatorJobTitle: 'Senior Tax Consultant',
-      selectedTraits: ['Taught me something valuable', 'Helped me through a difficult time'],
-      marketingConsent: false,
-      createdAt: new Date(Date.now() - 1000 * 60 * 1400).toISOString(),
-    },
-    {
-      id: 'demo-9',
-      recipientName: 'Juliet Ehimuan',
-      relationship: 'Mentor',
-      creatorFirstName: 'Zainab',
-      creatorLastName: 'Ibrahim',
-      creatorCompany: 'MTN Nigeria',
-      creatorIndustry: 'Telecoms',
-      creatorEmail: 'zainab.ibrahim@mtn.com',
-      creatorJobTitle: 'Digital Transformation Director',
-      selectedTraits: ['A true people leader', 'Believed in my potential'],
-      marketingConsent: true,
-      createdAt: new Date(Date.now() - 1000 * 60 * 1800).toISOString(),
-    },
-    {
-      id: 'demo-10',
-      recipientName: 'Segun Agbaje',
-      relationship: 'Former Employer',
-      creatorFirstName: 'Victor',
-      creatorLastName: 'Uche',
-      creatorCompany: 'Guaranty Trust Holding',
-      creatorIndustry: 'Banking',
-      creatorEmail: 'victor.uche@gtcoplc.com',
-      creatorJobTitle: 'Head of Brand Marketing',
-      selectedTraits: ['Challenged me to grow', 'Opened new opportunities'],
-      marketingConsent: true,
-      createdAt: new Date(Date.now() - 1000 * 60 * 2200).toISOString(),
-    }
-  ];
-}

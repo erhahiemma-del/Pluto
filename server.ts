@@ -2,6 +2,7 @@ import express from 'express';
 import { GoogleGenAI } from "@google/genai";
 import dotenv from 'dotenv';
 import { createServer as createViteServer } from 'vite';
+import { createClient } from '@supabase/supabase-js';
 
 dotenv.config();
 
@@ -22,6 +23,85 @@ async function startServer() {
     : null;
 
   const resendApiKey = process.env.RESEND_API_KEY;
+
+  // Supabase (server-side only). The service role key never reaches the browser.
+  const supabaseAdmin =
+    process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY
+      ? createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
+          auth: { persistSession: false },
+        })
+      : null;
+  const CARDS_TABLE = process.env.SUPABASE_CARDS_TABLE || 'extra_mile_cards';
+
+  const clean = (value: unknown, max: number) =>
+    typeof value === 'string' ? value.trim().slice(0, max) : '';
+
+  // Save one completed card (no photo or image is stored).
+  app.post('/api/cards', async (req, res) => {
+    if (!supabaseAdmin) {
+      return res.status(503).json({ error: 'Database not configured' });
+    }
+    const b = req.body || {};
+    const row = {
+      recipient_name: clean(b.recipientName, 120),
+      relationship: clean(b.relationship, 80),
+      message: clean(b.message, 600),
+      selected_traits: Array.isArray(b.selectedTraits)
+        ? b.selectedTraits.slice(0, 6).map((t: unknown) => clean(t, 60))
+        : [],
+      creator_first_name: clean(b.creatorFirstName, 80),
+      creator_last_name: clean(b.creatorLastName, 80),
+      creator_email: clean(b.creatorEmail, 160),
+      creator_job_title: clean(b.creatorJobTitle, 120),
+      creator_company: clean(b.creatorCompany, 120),
+      creator_industry: clean(b.creatorIndustry, 80),
+      marketing_consent: b.marketingConsent === true,
+      campaign: clean(b.campaign, 60) || 'ThoseWhoWentTheExtraMile',
+    };
+    const { data, error } = await supabaseAdmin.from(CARDS_TABLE).insert(row).select('id').single();
+    if (error) {
+      console.log('[Supabase] Insert failed:', error.message);
+      return res.status(500).json({ error: 'Could not save card' });
+    }
+    return res.json({ id: data.id });
+  });
+
+  // Admin: list cards. Requires the x-admin-token header to match ADMIN_TOKEN.
+  app.get('/api/admin/cards', async (req, res) => {
+    const token = process.env.ADMIN_TOKEN;
+    if (!token || req.get('x-admin-token') !== token) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    if (!supabaseAdmin) {
+      return res.status(503).json({ error: 'Database not configured' });
+    }
+    const { data, error } = await supabaseAdmin
+      .from(CARDS_TABLE)
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(5000);
+    if (error) {
+      console.log('[Supabase] Select failed:', error.message);
+      return res.status(500).json({ error: 'Could not load cards' });
+    }
+    const cards = (data || []).map((r: any) => ({
+      id: r.id,
+      recipientName: r.recipient_name,
+      relationship: r.relationship,
+      message: r.message,
+      selectedTraits: r.selected_traits || [],
+      creatorFirstName: r.creator_first_name,
+      creatorLastName: r.creator_last_name,
+      creatorEmail: r.creator_email,
+      creatorJobTitle: r.creator_job_title,
+      creatorCompany: r.creator_company,
+      creatorIndustry: r.creator_industry,
+      marketingConsent: r.marketing_consent,
+      campaign: r.campaign,
+      createdAt: r.created_at,
+    }));
+    return res.json({ cards });
+  });
 
   app.post('/api/generate-message', async (req, res) => {
     const { recipientName, relationship, traits, context } = req.body;

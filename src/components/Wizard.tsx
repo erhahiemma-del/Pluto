@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Cropper, { Point } from 'react-easy-crop';
 import { useWizard } from '../context/WizardContext';
 import { CardPreview } from './CardPreview';
@@ -896,33 +896,29 @@ const StepFive = ({ onStartNew }: { onStartNew?: () => void }) => {
   const [emailSuccess, setEmailSuccess] = useState(false);
   const [isReady, setIsReady] = useState(false);
 
-  // Auto-record to Supabase on creation
+  // Save the completed card to Supabase (via the server) once per card
+  const recorded = useRef(false);
   useEffect(() => {
-    const recordCard = () => {
-      try {
-        const existing = JSON.parse(localStorage.getItem('pluto_campaign_submissions') || '[]');
-        const newRecord = {
-          id: 'sub_' + Date.now(),
-          recipientName: state.data.recipientName || 'Hassan Emeka',
-          relationship: state.data.relationship || 'Director',
-          message: state.data.message || '',
-          selectedTraits: state.data.selectedTraits || [],
-          creatorFirstName: state.data.creatorFirstName || '',
-          creatorLastName: state.data.creatorLastName || '',
-          creatorEmail: state.data.creatorEmail || '',
-          creatorJobTitle: state.data.creatorJobTitle || '',
-          creatorCompany: state.data.creatorCompany || '',
-          creatorIndustry: state.data.creatorIndustry || '',
-          marketingConsent: state.data.marketingConsent || false,
-          campaign: 'ThoseWhoWentTheExtraMile',
-          createdAt: new Date().toISOString(),
-        };
-        localStorage.setItem('pluto_campaign_submissions', JSON.stringify([newRecord, ...existing]));
-      } catch (err) {
-        console.warn('Storage write warning:', err);
-      }
-    };
-    recordCard();
+    if (recorded.current) return;
+    recorded.current = true;
+    fetch('/api/cards', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        recipientName: state.data.recipientName || '',
+        relationship: state.data.relationship || '',
+        message: state.data.message || '',
+        selectedTraits: state.data.selectedTraits || [],
+        creatorFirstName: state.data.creatorFirstName || '',
+        creatorLastName: state.data.creatorLastName || '',
+        creatorEmail: state.data.creatorEmail || '',
+        creatorJobTitle: state.data.creatorJobTitle || '',
+        creatorCompany: state.data.creatorCompany || '',
+        creatorIndustry: state.data.creatorIndustry || '',
+        marketingConsent: state.data.marketingConsent || false,
+        campaign: 'ThoseWhoWentTheExtraMile',
+      }),
+    }).catch((err) => console.warn('Could not save card record:', err));
 
     const timer = setTimeout(() => setIsReady(true), 400);
     return () => clearTimeout(timer);
