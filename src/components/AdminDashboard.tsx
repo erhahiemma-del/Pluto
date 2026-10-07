@@ -74,6 +74,7 @@ export const AdminDashboard = ({ onBackToWizard, onBackToHome }: AdminDashboardP
   });
   const [tokenInput, setTokenInput] = useState('');
   const [loadError, setLoadError] = useState('');
+  const [funnelCounts, setFunnelCounts] = useState<{ step: string; users: number }[]>([]);
 
   const fetchCampaignData = async (token: string = adminToken) => {
     if (!token) {
@@ -92,6 +93,7 @@ export const AdminDashboard = ({ onBackToWizard, onBackToHome }: AdminDashboardP
       if (!res.ok) throw new Error(`Status ${res.status}`);
       const json = await res.json();
       setCards(Array.isArray(json.cards) ? json.cards : []);
+      setFunnelCounts(Array.isArray(json.funnel) ? json.funnel : []);
       setLoadError('');
     } catch (err) {
       console.warn('Failed to load campaign data:', err);
@@ -124,8 +126,10 @@ export const AdminDashboard = ({ onBackToWizard, onBackToHome }: AdminDashboardP
   // Metrics Computations
   const totalCompleted = cards.length;
   // Estimated campaign card starts (estimated benchmark based on completion rate ~73%)
-  const estimatedStarts = Math.round(totalCompleted / 0.73) || 1;
-  const completionRate = Math.min(100, Math.round((totalCompleted / estimatedStarts) * 100));
+  // Real funnel from tracked wizard sessions (no estimates)
+  const funnelStarts = funnelCounts[0]?.users || 0;
+  const funnelFinishes = funnelCounts[funnelCounts.length - 1]?.users || 0;
+  const completionRate = funnelStarts ? Math.round((funnelFinishes / funnelStarts) * 100) : 0;
 
   // Industry Segmentation calculation
   const industryCounts: Record<string, number> = {};
@@ -142,15 +146,12 @@ export const AdminDashboard = ({ onBackToWizard, onBackToHome }: AdminDashboardP
     }))
     .sort((a, b) => b.count - a.count);
 
-  // Funnel Data (Step 1 to Step 6)
-  const funnelData = [
-    { step: '1. Recipient Selected', users: estimatedStarts, rate: 100 },
-    { step: '2. Photo Uploaded', users: Math.round(estimatedStarts * 0.91), rate: 91 },
-    { step: '3. Traits Selected', users: Math.round(estimatedStarts * 0.85), rate: 85 },
-    { step: '4. Message Crafted', users: Math.round(estimatedStarts * 0.79), rate: 79 },
-    { step: '5. Corporate Details', users: Math.round(estimatedStarts * 0.74), rate: 74 },
-    { step: '6. Card Generated & Sent', users: totalCompleted, rate: completionRate },
-  ];
+  // Funnel Data: sessions that reached each step
+  const funnelData = funnelCounts.map((f) => ({
+    step: f.step,
+    users: f.users,
+    rate: funnelStarts ? Math.round((f.users / funnelStarts) * 100) : 0,
+  }));
 
   // Traits Popularity calculation
   const traitCounts: Record<string, number> = {};
@@ -206,7 +207,7 @@ export const AdminDashboard = ({ onBackToWizard, onBackToHome }: AdminDashboardP
     lines.push(`Generated Date,${new Date().toISOString()}`);
     lines.push(`Report Scope,All Completed Campaign Data`);
     lines.push(`Total Cards Completed,${totalCompleted}`);
-    lines.push(`Estimated Funnel Starts,${estimatedStarts}`);
+    lines.push(`Wizard Sessions Started,${funnelStarts}`);
     lines.push(`Overall Completion Rate,${completionRate}%`);
     lines.push(`Top Industry Sector,${formatCsvCell(industryData[0]?.name || 'N/A')}`);
     lines.push(`Corporate Marketing Opt-In Rate,${optInRate}%`);
@@ -495,7 +496,7 @@ export const AdminDashboard = ({ onBackToWizard, onBackToHome }: AdminDashboardP
               Funnel Completion
             </span>
             <div className="text-2xl font-extrabold text-slate-900 mt-0.5">{completionRate}%</div>
-            <span className="text-[11px] text-emerald-700 font-medium">Starts to finishes</span>
+            <span className="text-[11px] text-emerald-700 font-medium">{funnelFinishes} of {funnelStarts} sessions finished</span>
           </div>
         </div>
 

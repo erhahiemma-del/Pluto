@@ -21,3 +21,15 @@ create index if not exists extra_mile_cards_created_at_idx on public.extra_mile_
 -- Row Level Security on, with no public policies:
 -- only the server (service role key) can read or write. The browser never talks to this table directly.
 alter table public.extra_mile_cards enable row level security;
+
+-- Wizard progress events: one row each time a session reaches a step (1-5). Powers the real funnel.
+create table if not exists public.extra_mile_events (
+  id bigint generated always as identity primary key,
+  created_at timestamptz not null default now(),
+  session_id text not null,
+  step smallint not null check (step between 1 and 5)
+);
+
+create index if not exists extra_mile_events_session_idx on public.extra_mile_events (session_id);
+
+alter table public.extra_mile_events enable row level security;
