@@ -1,0 +1,102 @@
+@import "tailwindcss";
+@import "react-easy-crop/react-easy-crop.css";
+
+@layer base {
+  body {
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    color: #0f172a;
+    background-color: #FAF9F6;
+    overflow-x: hidden;
+  }
+}
+
+.font-handwriting {
+  font-family: 'Caveat', cursive;
+}
+
+.font-kalam {
+  font-family: 'Kalam', cursive;
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.animate-shimmer {
+  animation: shimmer 1.8s infinite ease-in-out;
+}
+
+@keyframes cardFloat {
+  0%, 100% {
+    transform: translateY(0px) rotate(-2.5deg);
+  }
+  50% {
+    transform: translateY(-6px) rotate(-2deg);
+  }
+}
+
+@keyframes cardFloatMobile {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-4px) rotate(0deg);
+  }
+}
+
+@keyframes highlightPass {
+  0% {
+    transform: translateX(-150%) rotate(25deg);
+    opacity: 0;
+  }
+  30% {
+    opacity: 0.6;
+  }
+  100% {
+    transform: translateX(250%) rotate(25deg);
+    opacity: 0;
+  }
+}
+
+@keyframes fadeInScale {
+  0% {
+    opacity: 0;
+    transform: translateY(16px) scale(0.97) rotate(-3.5deg);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1) rotate(-2.5deg);
+  }
+}
+
+.hero-card-animate {
+  animation: fadeInScale 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.hero-card-floating {
+  animation: cardFloat 5s ease-in-out infinite 0.8s;
+}
+
+@media (max-width: 768px) {
+  .hero-card-floating {
+    animation: cardFloatMobile 5s ease-in-out infinite 0.8s;
+  }
+}
+
+.card-sheen-sweep {
+  animation: highlightPass 1.4s ease-in-out 0.9s forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-card-floating,
+  .hero-card-animate,
+  .card-sheen-sweep {
+    animation: none !important;
+    transform: rotate(0deg) !important;
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "name": "Pluto Thank You Card Generator",
+  "description": "Create and share personalised thank-you cards for career mentors and colleagues.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
