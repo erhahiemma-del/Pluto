@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Cropper, { Point } from 'react-easy-crop';
 import { useWizard } from '../context/WizardContext';
 import { CardPreview } from './CardPreview';
@@ -51,6 +51,21 @@ export const Wizard = ({
   const { state, resetWizard } = useWizard();
   const [showVerifyModal, setShowVerifyModal] = useState(false);
   const [showStartOverModal, setShowStartOverModal] = useState(false);
+
+  // Record each step a session reaches, once, for the real funnel in the dashboard
+  const trackedSteps = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const sessionId = state.cardSessionId;
+    const step = Math.min(Math.max(state.step, 1), 5);
+    const key = `${sessionId}:${step}`;
+    if (!sessionId || trackedSteps.current.has(key)) return;
+    trackedSteps.current.add(key);
+    fetch('/api/events', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionId, step }),
+    }).catch(() => {});
+  }, [state.step, state.cardSessionId]);
 
   return (
     <div className="w-full">
@@ -894,35 +909,32 @@ const StepFive = ({ onStartNew }: { onStartNew?: () => void }) => {
   const [downloading, setDownloading] = useState(false);
   const [emailing, setEmailing] = useState(false);
   const [emailSuccess, setEmailSuccess] = useState(false);
+  const [emailError, setEmailError] = useState('');
   const [isReady, setIsReady] = useState(false);
 
-  // Auto-record to Supabase on creation
+  // Save the completed card to Supabase (via the server) once per card
+  const recorded = useRef(false);
   useEffect(() => {
-    const recordCard = () => {
-      try {
-        const existing = JSON.parse(localStorage.getItem('pluto_campaign_submissions') || '[]');
-        const newRecord = {
-          id: 'sub_' + Date.now(),
-          recipientName: state.data.recipientName || 'Hassan Emeka',
-          relationship: state.data.relationship || 'Director',
-          message: state.data.message || '',
-          selectedTraits: state.data.selectedTraits || [],
-          creatorFirstName: state.data.creatorFirstName || '',
-          creatorLastName: state.data.creatorLastName || '',
-          creatorEmail: state.data.creatorEmail || '',
-          creatorJobTitle: state.data.creatorJobTitle || '',
-          creatorCompany: state.data.creatorCompany || '',
-          creatorIndustry: state.data.creatorIndustry || '',
-          marketingConsent: state.data.marketingConsent || false,
-          campaign: 'ThoseWhoWentTheExtraMile',
-          createdAt: new Date().toISOString(),
-        };
-        localStorage.setItem('pluto_campaign_submissions', JSON.stringify([newRecord, ...existing]));
-      } catch (err) {
-        console.warn('Storage write warning:', err);
-      }
-    };
-    recordCard();
+    if (recorded.current) return;
+    recorded.current = true;
+    fetch('/api/cards', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        recipientName: state.data.recipientName || '',
+        relationship: state.data.relationship || '',
+        message: state.data.message || '',
+        selectedTraits: state.data.selectedTraits || [],
+        creatorFirstName: state.data.creatorFirstName || '',
+        creatorLastName: state.data.creatorLastName || '',
+        creatorEmail: state.data.creatorEmail || '',
+        creatorJobTitle: state.data.creatorJobTitle || '',
+        creatorCompany: state.data.creatorCompany || '',
+        creatorIndustry: state.data.creatorIndustry || '',
+        marketingConsent: state.data.marketingConsent || false,
+        campaign: 'ThoseWhoWentTheExtraMile',
+      }),
+    }).catch((err) => console.warn('Could not save card record:', err));
 
     const timer = setTimeout(() => setIsReady(true), 400);
     return () => clearTimeout(timer);
@@ -965,15 +977,21 @@ const StepFive = ({ onStartNew }: { onStartNew?: () => void }) => {
     setEmailing(true);
     try {
       const dataUrl = await generateCardImage('card-preview-export');
-      await fetch('/api/send-email', {
+      setEmailError('');
+      const res = await fetch('/api/send-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: state.data.creatorEmail, dataUrl }),
       });
+      const result = await res.json().catch(() => ({}));
+      if (!res.ok || !result.delivered) {
+        throw new Error(result.error || 'Email could not be delivered');
+      }
       setEmailSuccess(true);
       setTimeout(() => setEmailSuccess(false), 5000);
     } catch (err) {
       console.warn('Email send error:', err);
+      setEmailError("We couldn't email your card just now. Please download it instead, or try again later.");
     } finally {
       setEmailing(false);
     }
@@ -1038,6 +1056,12 @@ const StepFive = ({ onStartNew }: { onStartNew?: () => void }) => {
             <span>{emailing ? 'Sending...' : 'SEND TO MY INBOX'}</span>
           </button>
         </div>
+
+        {emailError && (
+          <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-2xl text-xs font-bold inline-block animate-fadeIn">
+            {emailError}
+          </div>
+        )}
 
         {emailSuccess && (
           <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl text-xs font-bold inline-block animate-fadeIn">

@@ -2,6 +2,7 @@ import express from 'express';
 import { GoogleGenAI } from "@google/genai";
 import dotenv from 'dotenv';
 import { createServer as createViteServer } from 'vite';
+import { createClient } from '@supabase/supabase-js';
 
 dotenv.config();
 
@@ -22,6 +23,120 @@ async function startServer() {
     : null;
 
   const resendApiKey = process.env.RESEND_API_KEY;
+
+  // Supabase (server-side only). The service role key never reaches the browser.
+  const supabaseAdmin =
+    process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY
+      ? createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
+          auth: { persistSession: false },
+        })
+      : null;
+  const CARDS_TABLE = process.env.SUPABASE_CARDS_TABLE || 'extra_mile_cards';
+  const EVENTS_TABLE = process.env.SUPABASE_EVENTS_TABLE || 'extra_mile_events';
+  const FUNNEL_STEPS = ['Who you are thanking', 'Photo', 'Personalise', 'Your details', 'Card created'];
+
+  const clean = (value: unknown, max: number) =>
+    typeof value === 'string' ? value.trim().slice(0, max) : '';
+
+  // Save one completed card (no photo or image is stored).
+  app.post('/api/cards', async (req, res) => {
+    if (!supabaseAdmin) {
+      return res.status(503).json({ error: 'Database not configured' });
+    }
+    const b = req.body || {};
+    const row = {
+      recipient_name: clean(b.recipientName, 120),
+      relationship: clean(b.relationship, 80),
+      message: clean(b.message, 600),
+      selected_traits: Array.isArray(b.selectedTraits)
+        ? b.selectedTraits.slice(0, 6).map((t: unknown) => clean(t, 60))
+        : [],
+      creator_first_name: clean(b.creatorFirstName, 80),
+      creator_last_name: clean(b.creatorLastName, 80),
+      creator_email: clean(b.creatorEmail, 160),
+      creator_job_title: clean(b.creatorJobTitle, 120),
+      creator_company: clean(b.creatorCompany, 120),
+      creator_industry: clean(b.creatorIndustry, 80),
+      marketing_consent: b.marketingConsent === true,
+      campaign: clean(b.campaign, 60) || 'ThoseWhoWentTheExtraMile',
+    };
+    const { data, error } = await supabaseAdmin.from(CARDS_TABLE).insert(row).select('id').single();
+    if (error) {
+      console.log('[Supabase] Insert failed:', error.message);
+      return res.status(500).json({ error: 'Could not save card' });
+    }
+    return res.json({ id: data.id });
+  });
+
+  // Record that a wizard session reached a step (1-5). Used for the real funnel.
+  app.post('/api/events', async (req, res) => {
+    if (!supabaseAdmin) return res.status(204).end();
+    const sessionId = clean(req.body?.sessionId, 80);
+    const step = Number(req.body?.step);
+    if (!sessionId || !Number.isInteger(step) || step < 1 || step > FUNNEL_STEPS.length) {
+      return res.status(400).json({ error: 'Invalid event' });
+    }
+    const { error } = await supabaseAdmin.from(EVENTS_TABLE).insert({ session_id: sessionId, step });
+    if (error) console.log('[Supabase] Event insert failed:', error.message);
+    return res.status(204).end();
+  });
+
+  // Admin: list cards. Requires the x-admin-token header to match ADMIN_TOKEN.
+  app.get('/api/admin/cards', async (req, res) => {
+    const token = process.env.ADMIN_TOKEN;
+    if (!token || req.get('x-admin-token') !== token) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    if (!supabaseAdmin) {
+      return res.status(503).json({ error: 'Database not configured' });
+    }
+    const { data, error } = await supabaseAdmin
+      .from(CARDS_TABLE)
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(5000);
+    if (error) {
+      console.log('[Supabase] Select failed:', error.message);
+      return res.status(500).json({ error: 'Could not load cards' });
+    }
+    const cards = (data || []).map((r: any) => ({
+      id: r.id,
+      recipientName: r.recipient_name,
+      relationship: r.relationship,
+      message: r.message,
+      selectedTraits: r.selected_traits || [],
+      creatorFirstName: r.creator_first_name,
+      creatorLastName: r.creator_last_name,
+      creatorEmail: r.creator_email,
+      creatorJobTitle: r.creator_job_title,
+      creatorCompany: r.creator_company,
+      creatorIndustry: r.creator_industry,
+      marketingConsent: r.marketing_consent,
+      campaign: r.campaign,
+      createdAt: r.created_at,
+    }));
+    // Real funnel: how many wizard sessions reached each step.
+    let funnel: { step: string; users: number }[] = [];
+    const { data: events, error: eventsError } = await supabaseAdmin
+      .from(EVENTS_TABLE)
+      .select('session_id, step')
+      .limit(100000);
+    if (eventsError) {
+      console.log('[Supabase] Events select failed:', eventsError.message);
+    } else {
+      const furthest = new Map<string, number>();
+      for (const e of events || []) {
+        const prev = furthest.get(e.session_id) || 0;
+        if (e.step > prev) furthest.set(e.session_id, e.step);
+      }
+      funnel = FUNNEL_STEPS.map((label, i) => ({
+        step: `${i + 1}. ${label}`,
+        users: [...furthest.values()].filter((max) => max >= i + 1).length,
+      }));
+    }
+
+    return res.json({ cards, funnel });
+  });
 
   app.post('/api/generate-message', async (req, res) => {
     const { recipientName, relationship, traits, context } = req.body;
@@ -121,19 +236,19 @@ Return a JSON object in this exact format:
         if (!response.ok) {
           // Log informational note without console.error so expected test sandbox restrictions don't trigger error banners
           console.log(`[Email Dispatch Notice] Resend status ${response.status} for ${cleanEmail}: ${result?.message || result?.name || 'sandbox recipient restriction'}`);
-          return res.json({ success: true, simulated: true, notice: result?.message || 'Delivery simulated' });
+          return res.status(502).json({ success: false, error: 'Email could not be delivered' });
         }
 
         console.log(`[Email] Card successfully emailed to ${cleanEmail} via Resend. ID: ${result?.id}`);
         return res.json({ success: true, delivered: true, id: result?.id });
       } catch (error: any) {
         console.log('[Email Dispatch Notice] Exception during send:', error?.message || error);
-        return res.json({ success: true, simulated: true, warning: 'Failed to send external email' });
+        return res.status(502).json({ success: false, error: 'Email could not be delivered' });
       }
     }
 
-    console.log(`[Email Simulation] Card processed for ${email} (Resend key not configured).`);
-    return res.json({ success: true, simulated: true });
+    console.log(`[Email] Not sent to ${email}: Resend key not configured.`);
+    return res.status(503).json({ success: false, error: 'Email is not available right now' });
   });
 
   if (process.env.NODE_ENV !== 'production') {
