@@ -692,10 +692,10 @@ const StepFour = () => {
     <div className="max-w-2xl mx-auto px-4 py-8 animate-fadeIn">
       <div className="space-y-2 mb-8 text-center sm:text-left">
         <h2 className="text-3xl sm:text-4xl font-extrabold text-[#0B1B3D] tracking-tight">
-          Where should we send your card?
+          A little about you.
         </h2>
         <p className="text-slate-500 text-base">
-          We’ll send the finished card to your inbox so you can download and share it.
+          Your name and job title appear on the card, so they know who it’s from.
         </p>
       </div>
 
@@ -912,9 +912,6 @@ const StepFive = ({ onStartNew }: { onStartNew?: () => void }) => {
     }).catch(() => {});
   };
   const [downloading, setDownloading] = useState(false);
-  const [emailing, setEmailing] = useState(false);
-  const [emailSuccess, setEmailSuccess] = useState(false);
-  const [emailError, setEmailError] = useState('');
   const [showDownloadDone, setShowDownloadDone] = useState(false);
   const [videoProgress, setVideoProgress] = useState<number | null>(null);
   const [videoError, setVideoError] = useState('');
@@ -1027,32 +1024,6 @@ const StepFive = ({ onStartNew }: { onStartNew?: () => void }) => {
     }
   };
 
-  // Send to inbox handler
-  const handleSendInbox = async () => {
-    if (!state.data.creatorEmail) return;
-    setEmailing(true);
-    try {
-      const dataUrl = await generateCardImage('card-preview-export');
-      setEmailError('');
-      const res = await fetch('/api/send-email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: state.data.creatorEmail, dataUrl }),
-      });
-      const result = await res.json().catch(() => ({}));
-      if (!res.ok || !result.delivered) {
-        throw new Error(result.error || 'Email could not be delivered');
-      }
-      recordStyle();
-      setEmailSuccess(true);
-      setTimeout(() => setEmailSuccess(false), 5000);
-    } catch (err) {
-      console.warn('Email send error:', err);
-      setEmailError("We couldn't email your card just now. Please download it instead, or try again later.");
-    } finally {
-      setEmailing(false);
-    }
-  };
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8 animate-fadeIn">
@@ -1069,7 +1040,7 @@ const StepFive = ({ onStartNew }: { onStartNew?: () => void }) => {
             Your card is ready.
           </h2>
           <p className="text-slate-500 text-base mt-1">
-            Download your card or send it to your inbox to share it with someone who went the extra mile.
+            Download your card, or share it straight to LinkedIn, WhatsApp, X or Instagram.
           </p>
         </div>
 
@@ -1145,16 +1116,6 @@ const StepFive = ({ onStartNew }: { onStartNew?: () => void }) => {
             <span>High-Res (1600 × 1600)</span>
           </button>
 
-          {/* Send to my inbox */}
-          <button
-            type="button"
-            onClick={handleSendInbox}
-            disabled={emailing}
-            className="px-6 py-3.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-800 font-bold rounded-full text-sm flex items-center space-x-2 shadow-xs transition-all cursor-pointer"
-          >
-            <Mail className="w-4 h-4 text-[#1068EB]" />
-            <span>{emailing ? 'Sending...' : 'SEND TO MY INBOX'}</span>
-          </button>
         </div>
 
         {videoError && (
@@ -1163,24 +1124,12 @@ const StepFive = ({ onStartNew }: { onStartNew?: () => void }) => {
           </div>
         )}
 
-        {emailError && (
-          <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-2xl text-xs font-bold inline-block animate-fadeIn">
-            {emailError}
-          </div>
-        )}
-
-        {emailSuccess && (
-          <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl text-xs font-bold inline-block animate-fadeIn">
-            ✓ Card sent to {state.data.creatorEmail || 'your inbox'}!
-          </div>
-        )}
-
         {/* Social Sharing Component */}
         <div className="pt-6 max-w-lg mx-auto">
           <ShareComponent
             cardElementId="card-preview-export"
             recipientName={state.data.recipientName}
-            creatorEmail={state.data.creatorEmail}
+            onShared={recordStyle}
           />
         </div>
 
