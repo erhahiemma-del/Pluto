@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Cropper, { Point } from 'react-easy-crop';
 import { useWizard } from '../context/WizardContext';
 import { CardPreview } from './CardPreview';
+import { CARD_STYLES } from './CardTemplates';
 import { ShareComponent } from './ShareComponent';
 import { generateCardImage } from '../services/cardGenerator';
 import { ProgressBar } from './ProgressBar';
@@ -908,7 +909,19 @@ const StepFour = () => {
    STEP 5: CREATE (Finished Square Card, Quality Check, Export & Share)
    ========================================================================= */
 const StepFive = ({ onStartNew }: { onStartNew?: () => void }) => {
-  const { state, resetWizard } = useWizard();
+  const { state, resetWizard, updateData } = useWizard();
+  const savedCardId = useRef<string | null>(null);
+  const cardStyle = state.data.cardStyle || 'classic';
+
+  // Remember which style the card was actually downloaded or emailed in
+  const recordStyle = () => {
+    if (!savedCardId.current) return;
+    fetch(`/api/cards/${savedCardId.current}/style`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cardStyle }),
+    }).catch(() => {});
+  };
   const [downloading, setDownloading] = useState(false);
   const [emailing, setEmailing] = useState(false);
   const [emailSuccess, setEmailSuccess] = useState(false);
@@ -936,9 +949,15 @@ const StepFive = ({ onStartNew }: { onStartNew?: () => void }) => {
         creatorCompany: state.data.creatorCompany || '',
         creatorIndustry: state.data.creatorIndustry || '',
         marketingConsent: state.data.marketingConsent || false,
+        cardStyle,
         campaign: 'ThoseWhoWentTheExtraMile',
       }),
-    }).catch((err) => console.warn('Could not save card record:', err));
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((r) => {
+        if (r?.id) savedCardId.current = r.id;
+      })
+      .catch((err) => console.warn('Could not save card record:', err));
 
     const timer = setTimeout(() => setIsReady(true), 400);
     return () => clearTimeout(timer);
@@ -968,6 +987,7 @@ const StepFive = ({ onStartNew }: { onStartNew?: () => void }) => {
       link.href = dataUrl;
       link.download = filename;
       link.click();
+      recordStyle();
       setShowDownloadDone(true);
     } catch (err) {
       console.warn('Download error:', err);
@@ -992,6 +1012,7 @@ const StepFive = ({ onStartNew }: { onStartNew?: () => void }) => {
       if (!res.ok || !result.delivered) {
         throw new Error(result.error || 'Email could not be delivered');
       }
+      recordStyle();
       setEmailSuccess(true);
       setTimeout(() => setEmailSuccess(false), 5000);
     } catch (err) {
@@ -1019,6 +1040,36 @@ const StepFive = ({ onStartNew }: { onStartNew?: () => void }) => {
           <p className="text-slate-500 text-base mt-1">
             Download your card or send it to your inbox to share it with someone who went the extra mile.
           </p>
+        </div>
+
+        {/* Style picker: same details, different look */}
+        <div className="max-w-[540px] mx-auto">
+          <p className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Choose a style</p>
+          <div role="radiogroup" aria-label="Card style" className="grid grid-cols-3 gap-2">
+            {CARD_STYLES.map((s) => {
+              const active = cardStyle === s.id;
+              return (
+                <button
+                  key={s.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={active}
+                  onClick={() => updateData({ cardStyle: s.id })}
+                  className={`flex flex-col items-center gap-1.5 rounded-2xl border-2 px-2 py-3 transition-all cursor-pointer ${
+                    active ? 'border-[#00875A] bg-emerald-50/60 shadow-sm' : 'border-slate-200 bg-white hover:border-slate-300'
+                  }`}
+                >
+                  <span className="flex -space-x-1.5">
+                    {s.swatch.map((c) => (
+                      <span key={c} className="w-5 h-5 rounded-full border-2 border-white ring-1 ring-slate-200" style={{ backgroundColor: c }} />
+                    ))}
+                  </span>
+                  <span className={`text-sm font-bold ${active ? 'text-[#00704A]' : 'text-slate-800'}`}>{s.label}</span>
+                  <span className="text-[11px] leading-tight text-slate-500 hidden sm:block">{s.description}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* Large Square Card Preview (Immutable Source of Truth) */}

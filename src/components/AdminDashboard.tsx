@@ -40,6 +40,7 @@ interface CardRecord {
   creatorJobTitle?: string;
   selectedTraits?: string[];
   marketingConsent?: boolean;
+  cardStyle?: string;
   createdAt?: string;
 }
 
@@ -166,6 +167,12 @@ export const AdminDashboard = ({ onBackToWizard, onBackToHome }: AdminDashboardP
     .sort((a, b) => b.count - a.count)
     .slice(0, 6);
 
+  // Card style split
+  const styleCounts = ['classic', 'warm', 'bold'].map((id) => {
+    const count = cards.filter((c) => (c.cardStyle || 'classic') === id).length;
+    return { id, count, pct: totalCompleted > 0 ? Math.round((count / totalCompleted) * 100) : 0 };
+  });
+
   // Marketing Opt-in Rate
   const optIns = cards.filter((c) => c.marketingConsent).length;
   const optInRate = totalCompleted > 0 ? Math.round((optIns / totalCompleted) * 100) : 0;
@@ -263,7 +270,7 @@ export const AdminDashboard = ({ onBackToWizard, onBackToHome }: AdminDashboardP
     // Section 4: Detailed Campaign Cards
     lines.push('=== DETAILED CAMPAIGN CARDS LEDGER ===');
     lines.push(
-      'Card ID,Recipient Name,Relationship,Creator First Name,Creator Last Name,Creator Company,Corporate Email,Current Role,Industry,Appreciation Traits,Marketing Opt-In,Created At'
+      'Card ID,Recipient Name,Relationship,Creator First Name,Creator Last Name,Creator Company,Corporate Email,Current Role,Industry,Appreciation Traits,Card Style,Marketing Opt-In,Created At'
     );
     cards.forEach((c) => {
       lines.push(
@@ -278,6 +285,7 @@ export const AdminDashboard = ({ onBackToWizard, onBackToHome }: AdminDashboardP
           formatCsvCell(c.creatorJobTitle),
           formatCsvCell(c.creatorIndustry),
           formatCsvCell((c.selectedTraits || []).join('; ')),
+          formatCsvCell(c.cardStyle || 'classic'),
           c.marketingConsent ? 'Opted In' : 'Declined',
           formatCsvCell(c.createdAt),
         ].join(',')
@@ -311,7 +319,7 @@ export const AdminDashboard = ({ onBackToWizard, onBackToHome }: AdminDashboardP
     lines.push(`Exported At,${new Date().toISOString()}`);
     lines.push('');
     lines.push(
-      'Card ID,Recipient Name,Relationship,Creator Name,Creator Company,Corporate Email,Current Role,Industry,Appreciation Traits,Marketing Opt-In,Created At'
+      'Card ID,Recipient Name,Relationship,Creator Name,Creator Company,Corporate Email,Current Role,Industry,Appreciation Traits,Card Style,Marketing Opt-In,Created At'
     );
 
     filteredCards.forEach((c) => {
@@ -326,6 +334,7 @@ export const AdminDashboard = ({ onBackToWizard, onBackToHome }: AdminDashboardP
           formatCsvCell(c.creatorJobTitle),
           formatCsvCell(c.creatorIndustry),
           formatCsvCell((c.selectedTraits || []).join('; ')),
+          formatCsvCell(c.cardStyle || 'classic'),
           c.marketingConsent ? 'Opted In' : 'Declined',
           formatCsvCell(c.createdAt),
         ].join(',')
@@ -535,6 +544,26 @@ export const AdminDashboard = ({ onBackToWizard, onBackToHome }: AdminDashboardP
             <div className="text-2xl font-extrabold text-slate-900 mt-0.5">{optInRate}%</div>
             <span className="text-[11px] text-amber-700 font-medium">Corporate subscriber rate</span>
           </div>
+        </div>
+      </div>
+
+      {/* Card style split */}
+      <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs mb-8">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-sm font-bold text-slate-900">Card styles chosen</h2>
+          <span className="text-[11px] text-slate-500">Style each card was downloaded or emailed in</span>
+        </div>
+        <div className="grid grid-cols-3 gap-3">
+          {styleCounts.map((s) => (
+            <div key={s.id} className="rounded-xl bg-slate-50 px-4 py-3">
+              <div className="text-xs font-semibold uppercase tracking-wider text-slate-500 capitalize">{s.id}</div>
+              <div className="text-xl font-extrabold text-slate-900">{s.count.toLocaleString()}</div>
+              <div className="mt-1 h-1.5 rounded-full bg-slate-200 overflow-hidden">
+                <div className="h-full bg-[#00875A]" style={{ width: `${s.pct}%` }} />
+              </div>
+              <div className="text-[11px] text-slate-500 mt-1">{s.pct}% of cards</div>
+            </div>
+          ))}
         </div>
       </div>
 

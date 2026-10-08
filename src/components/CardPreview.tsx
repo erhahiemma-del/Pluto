@@ -1,6 +1,7 @@
 import React from 'react';
 import { useWizard } from '../context/WizardContext';
-import { CardSvgArtboard, CardData } from './CardSvgArtboard';
+import { CardData } from './CardSvgArtboard';
+import { CardArtboard } from './CardTemplates';
 
 interface CardPreviewProps {
   id?: string;
@@ -39,7 +40,8 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
         backgroundColor: '#FFFFFF',
       }}
     >
-      <CardSvgArtboard
+      <CardArtboard
+        cardStyle={state.data.cardStyle || 'classic'}
         data={cardData}
         id={id}
         debugMode={debugMode}

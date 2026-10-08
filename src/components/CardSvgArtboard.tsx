@@ -22,7 +22,7 @@ export interface CardSvgArtboardProps {
 }
 
 // Approved attribute chip definitions with 2-line stacked labels
-const getAttributeConfig = (trait: string) => {
+export const getAttributeConfig = (trait: string) => {
   const norm = (trait || '').toLowerCase().trim();
 
   if (norm.includes('potential')) {
@@ -75,7 +75,7 @@ const getAttributeConfig = (trait: string) => {
 };
 
 // Word wrap helper for SVG text
-const wrapText = (text: string, maxCharsPerLine: number, maxLines: number = 4): string[] => {
+export const wrapText = (text: string, maxCharsPerLine: number, maxLines: number = 4): string[] => {
   const words = text.split(/\s+/);
   const lines: string[] = [];
   let currentLine = '';
