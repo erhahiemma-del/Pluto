@@ -2,16 +2,22 @@ import React from 'react';
 import { CAMPAIGN_URL_TEXT } from '../constants/brand';
 import { CardData, CardSvgArtboard, CardSvgArtboardProps, getAttributeConfig, wrapText } from './CardSvgArtboard';
 
-export type CardStyle = 'classic' | 'warm' | 'bold' | 'oxblood';
+export type CardStyle = 'classic' | 'warm' | 'bold' | 'oxblood' | 'purple';
+
+/** Default style for new cards (Navy). 'classic' remains only so older drafts still render. */
+export const DEFAULT_CARD_STYLE: CardStyle = 'bold';
 
 /** Styles exported with square corners. */
-export const SQUARE_STYLES: string[] = ['bold', 'oxblood'];
+export const SQUARE_STYLES: string[] = ['bold', 'oxblood', 'purple'];
+
+/** Styles that have the intro animation. */
+export const ANIMATED_STYLES: string[] = ['bold', 'oxblood', 'purple'];
 
 export const CARD_STYLES: { id: CardStyle; label: string; description: string; swatch: string[] }[] = [
-  { id: 'classic', label: 'Classic', description: 'Clean and confident', swatch: ['#FFFFFF', '#1068EB', '#00273B'] },
-  { id: 'warm', label: 'Warm', description: 'Heartfelt, like a handwritten note', swatch: ['#FBF6EE', '#C9A227', '#7A4E1D'] },
-  { id: 'bold', label: 'Bold', description: 'Big, bright and made to share', swatch: ['#071A3A', '#00E5A3', '#2563EB'] },
-  { id: 'oxblood', label: 'Oxblood', description: 'Rich, refined and confident', swatch: ['#3B0A14', '#F2B8C6', '#8E1B33'] },
+  { id: 'bold', label: 'Navy', description: 'Confident and made to share', swatch: ['#071A3A', '#00E5A3', '#2563EB'] },
+  { id: 'oxblood', label: 'Oxblood', description: 'Rich and refined', swatch: ['#3B0A14', '#F2B8C6', '#8E1B33'] },
+  { id: 'purple', label: 'Purple', description: 'Pluto purple, modern and bright', swatch: ['#1D1650', '#C7B8FF', '#5B4BFF'] },
+  { id: 'warm', label: 'Warm', description: 'Like a handwritten note', swatch: ['#FBF6EE', '#C9A227', '#7A4E1D'] },
 ];
 
 const HASHTAG = '#ThoseWhoWentTheExtraMile';
@@ -248,7 +254,7 @@ type BoldTheme = {
   traitText: string;
 };
 
-const BOLD_THEMES: Record<'navy' | 'oxblood', BoldTheme> = {
+const BOLD_THEMES: Record<'navy' | 'oxblood' | 'purple', BoldTheme> = {
   navy: {
     key: 'navy',
     bg: '#071A3A',
@@ -271,9 +277,28 @@ const BOLD_THEMES: Record<'navy' | 'oxblood', BoldTheme> = {
     label: '#E9C7CF',
     traitText: '#FFE9EE',
   },
-};
+  purple: {
+    key: 'purple',
+    bg: '#1D1650',
+    accent: '#C7B8FF',
+    pillBg: '#5B4BFF',
+    pillText: '#FFFFFF',
+    msg: '#F5F3FF',
+    role: '#B3ABD9',
+    label: '#DCD6FF',
+    traitText: '#EFEAFF',
+  },};
 
-const CardSvgBoldThemed: React.FC<CardSvgArtboardProps & { theme: BoldTheme }> = ({ data, id, className = '', style = {}, theme: t }) => {
+/** Intro animation timing. Total build ≈ 1.5s, then the card holds still like a banner. */
+export const CARD_ANIMATION_SECONDS = 1.5;
+const easeOut = (x: number) => 1 - Math.pow(1 - x, 3);
+/** Progress 0→1 of a step that starts at `start` and lasts `dur` seconds. No time given = finished (static card). */
+const step = (t: number | undefined, start: number, dur: number) =>
+  t === undefined ? 1 : easeOut(Math.min(1, Math.max(0, (t - start) / dur)));
+
+export type AnimatedCardProps = CardSvgArtboardProps & { animT?: number };
+
+const CardSvgBoldThemed: React.FC<AnimatedCardProps & { theme: BoldTheme }> = ({ data, id, className = '', style = {}, theme: t, animT }) => {
   const c = prepare(data);
   const p = `bold-${t.key}`;
   const nameSize = fitFont(c.recipientName + '.', 520, 84, 40, 0.55);
@@ -284,6 +309,16 @@ const CardSvgBoldThemed: React.FC<CardSvgArtboardProps & { theme: BoldTheme }> =
   const { pills, rowCount } = flowPills(c.traitLabels.map((x) => x.label), 505, 15, 16, 10, 2);
   const pillsY = msgY + (msgLines.length - 1) * lineH + 40;
   const senderY = pillsY + rowCount * 48 + 44;
+
+  // Animation steps (all 1 when static)
+  const aPhoto = step(animT, 0, 0.55);
+  const aThank = step(animT, 0.15, 0.4);
+  const aName = step(animT, 0.25, 0.45);
+  const aRel = step(animT, 0.45, 0.35);
+  const aMsg = step(animT, 0.55, 0.45);
+  const aSender = step(animT, 0.95, 0.4);
+  const aFooter = step(animT, 1.05, 0.45);
+  const rise = (a: number, d: number) => `translate(0, ${((1 - a) * d).toFixed(2)})`;
 
   return (
     <svg id={id} viewBox="0 0 1080 1080" width="1080" height="1080" xmlns="http://www.w3.org/2000/svg" className={className} style={svgStyle({ borderRadius: 0, ...style })}>
@@ -297,32 +332,34 @@ const CardSvgBoldThemed: React.FC<CardSvgArtboardProps & { theme: BoldTheme }> =
           <stop offset="0" stopColor={t.bg} stopOpacity="0" />
           <stop offset="1" stopColor={t.bg} stopOpacity="1" />
         </linearGradient>
+        <clipPath id={`${p}-photoClip`}>
+          <rect x="0" y="0" width="480" height="1080" />
+        </clipPath>
       </defs>
 
       {/* Background + photo */}
       <rect width="1080" height="1080" fill={t.bg} />
-      <image href={c.photoUrl} x="0" y="0" width="480" height="1080" preserveAspectRatio="xMidYMid slice" />
-      <rect x="0" y="0" width="480" height="1080" fill={`url(#${p}-photoFade)`} />
-      <rect x="400" y="0" width="80" height="1080" fill={`url(#${p}-edgeFade)`} />
-
-      {/* Photo-side footer */}
-      <text x="48" y="930" fill="#FFFFFF" className="svg-script" fontSize="34" fontWeight="700">
-        <tspan x="48">Some people are part of your</tspan>
-        <tspan x="48" dy="40">career history. Make sure they know.</tspan>
-      </text>
-      <text x="48" y="1035" fill={t.accent} className="svg-sans" fontSize="18" fontWeight="800">
-        {HASHTAG}
-      </text>
+      <g opacity={aPhoto} clipPath={`url(#${p}-photoClip)`}>
+        <g transform={`translate(${((1 - aPhoto) * -60).toFixed(2)}, 0)`}>
+          <image href={c.photoUrl} x="0" y="0" width="480" height="1080" preserveAspectRatio="xMidYMid slice" />
+        </g>
+        <rect x="0" y="0" width="480" height="1080" fill={`url(#${p}-photoFade)`} />
+        <rect x="400" y="0" width="80" height="1080" fill={`url(#${p}-edgeFade)`} />
+      </g>
 
       {/* Headline */}
-      <text x="520" y="140" fill={t.accent} className="svg-sans" fontSize="28" fontWeight="800" letterSpacing="0.22em">
-        THANK YOU,
-      </text>
-      <text x="518" y={140 + nameSize * 0.98} fill="#FFFFFF" className="svg-sans" fontSize={nameSize} fontWeight="800" letterSpacing="-0.03em">
-        {c.recipientName}
-        <tspan fill={t.accent}>.</tspan>
-      </text>
-      <g transform={`translate(520, ${relY})`}>
+      <g opacity={aThank} transform={rise(aThank, 18)}>
+        <text x="520" y="140" fill={t.accent} className="svg-sans" fontSize="28" fontWeight="800" letterSpacing="0.22em">
+          THANK YOU,
+        </text>
+      </g>
+      <g opacity={aName} transform={rise(aName, 30)}>
+        <text x="518" y={140 + nameSize * 0.98} fill="#FFFFFF" className="svg-sans" fontSize={nameSize} fontWeight="800" letterSpacing="-0.03em">
+          {c.recipientName}
+          <tspan fill={t.accent}>.</tspan>
+        </text>
+      </g>
+      <g opacity={aRel} transform={`translate(520, ${relY + 20}) scale(${(0.7 + 0.3 * aRel).toFixed(3)}) translate(0, -20)`}>
         <rect width={relW} height="40" rx="20" fill={t.pillBg} />
         <text x="20" y="26" fill={t.pillText} className="svg-sans" fontSize="16" fontWeight="800" letterSpacing="0.12em">
           {c.relationship.toUpperCase()}
@@ -330,70 +367,92 @@ const CardSvgBoldThemed: React.FC<CardSvgArtboardProps & { theme: BoldTheme }> =
       </g>
 
       {/* Message */}
-      <text x="512" y={msgY + 36} fill={t.accent} className="svg-sans" fontSize="120" fontWeight="800">
-        “
-      </text>
-      <text x="520" y={msgY + 30} fill={t.msg} className="svg-sans" fontSize={msgSize} fontWeight="500">
-        {msgLines.map((l, i) => (
-          <tspan key={i} x="520" dy={i === 0 ? 0 : lineH}>
-            {l}
-          </tspan>
-        ))}
-      </text>
-
-      {/* Traits */}
-      {pills.map((x) => (
-        <g key={x.label} transform={`translate(${520 + x.x}, ${pillsY + 30 + x.row * 48})`}>
-          <rect width={x.w} height="36" rx="18" fill="none" stroke={t.accent} strokeWidth="1.8" />
-          <text x={x.w / 2} y="24" textAnchor="middle" fill={t.traitText} className="svg-sans" fontSize="15" fontWeight="700" letterSpacing="0.01em">
-            {x.label}
-          </text>
-        </g>
-      ))}
-
-      {/* Sender */}
-      <text x="520" y={senderY + 30} fill={t.accent} className="svg-sans" fontSize="13" fontWeight="800" letterSpacing="0.2em">
-        WITH GRATITUDE,
-      </text>
-      <text x="520" y={senderY + 66} fill="#FFFFFF" className="svg-sans" fontSize="30" fontWeight="800">
-        {c.senderName}
-      </text>
-      <text x="520" y={senderY + 96} fill={t.role} className="svg-sans" fontSize="19" fontWeight="500">
-        {c.senderRole}
-      </text>
-
-      {/* Right footer: link + logo */}
-      <line x1="520" y1="890" x2="1032" y2="890" stroke={t.accent} strokeOpacity="0.3" strokeWidth="1.5" />
-      <text x="520" y="930" fill={t.label} className="svg-sans" fontSize="15" fontWeight="600">
-        Who went the extra mile for you?
-      </text>
-      <g transform="translate(520, 948)">
-        <rect width="330" height="50" rx="25" fill="#FFFFFF" />
-        <text x="165" y="31" textAnchor="middle" fill={t.bg} className="svg-sans" fontSize="15" fontWeight="800">
-          {CAMPAIGN_URL_TEXT}
+      <g opacity={aMsg} transform={rise(aMsg, 22)}>
+        <text x="512" y={msgY + 36} fill={t.accent} className="svg-sans" fontSize="120" fontWeight="800">
+          “
+        </text>
+        <text x="520" y={msgY + 30} fill={t.msg} className="svg-sans" fontSize={msgSize} fontWeight="500">
+          {msgLines.map((l, i) => (
+            <tspan key={i} x="520" dy={i === 0 ? 0 : lineH}>
+              {l}
+            </tspan>
+          ))}
         </text>
       </g>
-      <rect x="868" y="908" width="164" height="104" rx="10" fill="#FFFFFF" />
-      <PlutoMark x={950 - 66} y={926} scale={0.8} idPrefix={p} />
-      <text x="950" y="990" textAnchor="middle" fill={t.bg} className="svg-sans" fontSize="13" fontWeight="700">
-        by VerifyMe
-      </text>
+
+      {/* Traits pop in one after another */}
+      {pills.map((x, i) => {
+        const a = step(animT, 0.75 + i * 0.07, 0.3);
+        const s = (0.6 + 0.4 * a).toFixed(3);
+        return (
+          <g key={x.label} opacity={a} transform={`translate(${520 + x.x + x.w / 2}, ${pillsY + 48 + x.row * 48}) scale(${s}) translate(${-x.w / 2}, -18)`}>
+            <rect width={x.w} height="36" rx="18" fill="none" stroke={t.accent} strokeWidth="1.8" />
+            <text x={x.w / 2} y="24" textAnchor="middle" fill={t.traitText} className="svg-sans" fontSize="15" fontWeight="700" letterSpacing="0.01em">
+              {x.label}
+            </text>
+          </g>
+        );
+      })}
+
+      {/* Sender */}
+      <g opacity={aSender} transform={rise(aSender, 16)}>
+        <text x="520" y={senderY + 30} fill={t.accent} className="svg-sans" fontSize="13" fontWeight="800" letterSpacing="0.2em">
+          WITH GRATITUDE,
+        </text>
+        <text x="520" y={senderY + 66} fill="#FFFFFF" className="svg-sans" fontSize="30" fontWeight="800">
+          {c.senderName}
+        </text>
+        <text x="520" y={senderY + 96} fill={t.role} className="svg-sans" fontSize="19" fontWeight="500">
+          {c.senderRole}
+        </text>
+      </g>
+
+      {/* Footers */}
+      <g opacity={aFooter} transform={rise(aFooter, 24)}>
+        <text x="48" y="930" fill="#FFFFFF" className="svg-script" fontSize="34" fontWeight="700">
+          <tspan x="48">Some people are part of your</tspan>
+          <tspan x="48" dy="40">career history. Make sure they know.</tspan>
+        </text>
+        <text x="48" y="1035" fill={t.accent} className="svg-sans" fontSize="18" fontWeight="800">
+          {HASHTAG}
+        </text>
+        <line x1="520" y1="890" x2="1032" y2="890" stroke={t.accent} strokeOpacity="0.3" strokeWidth="1.5" />
+        <text x="520" y="930" fill={t.label} className="svg-sans" fontSize="15" fontWeight="600">
+          Who went the extra mile for you?
+        </text>
+        <g transform="translate(520, 948)">
+          <rect width="330" height="50" rx="25" fill="#FFFFFF" />
+          <text x="165" y="31" textAnchor="middle" fill={t.bg} className="svg-sans" fontSize="15" fontWeight="800">
+            {CAMPAIGN_URL_TEXT}
+          </text>
+        </g>
+        <rect x="868" y="908" width="164" height="104" rx="10" fill="#FFFFFF" />
+        <PlutoMark x={950 - 66} y={926} scale={0.8} idPrefix={p} />
+        <text x="950" y="990" textAnchor="middle" fill={t.bg} className="svg-sans" fontSize="13" fontWeight="700">
+          by VerifyMe
+        </text>
+      </g>
     </svg>
   );
 };
 
-export const CardSvgBold: React.FC<CardSvgArtboardProps> = ({ id = 'card-svg-bold', ...props }) => (
+export const CardSvgBold: React.FC<AnimatedCardProps> = ({ id = 'card-svg-bold', ...props }) => (
   <CardSvgBoldThemed {...props} id={id} theme={BOLD_THEMES.navy} />
 );
 
-export const CardSvgOxblood: React.FC<CardSvgArtboardProps> = ({ id = 'card-svg-oxblood', ...props }) => (
+export const CardSvgOxblood: React.FC<AnimatedCardProps> = ({ id = 'card-svg-oxblood', ...props }) => (
   <CardSvgBoldThemed {...props} id={id} theme={BOLD_THEMES.oxblood} />
 );
 
+export const CardSvgPurple: React.FC<AnimatedCardProps> = ({ id = 'card-svg-purple', ...props }) => (
+  <CardSvgBoldThemed {...props} id={id} theme={BOLD_THEMES.purple} />
+);
+
 /** Renders the card in the chosen style. */
-export const CardArtboard: React.FC<CardSvgArtboardProps & { cardStyle?: string }> = ({ cardStyle, ...props }) => {
+export const CardArtboard: React.FC<AnimatedCardProps & { cardStyle?: string }> = ({ cardStyle, animT, ...props }) => {
+  if (cardStyle === 'classic') return <CardSvgArtboard {...props} />;
   if (cardStyle === 'warm') return <CardSvgWarm {...props} />;
-  if (cardStyle === 'bold') return <CardSvgBold {...props} />;
-  if (cardStyle === 'oxblood') return <CardSvgOxblood {...props} />;
-  return <CardSvgArtboard {...props} />;
+  if (cardStyle === 'oxblood') return <CardSvgOxblood {...props} animT={animT} />;
+  if (cardStyle === 'purple') return <CardSvgPurple {...props} animT={animT} />;
+  return <CardSvgBold {...props} animT={animT} />;
 };

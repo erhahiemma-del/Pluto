@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Cropper, { Point } from 'react-easy-crop';
 import { useWizard } from '../context/WizardContext';
 import { CardPreview } from './CardPreview';
-import { CARD_STYLES } from './CardTemplates';
+import { ANIMATED_STYLES, CARD_STYLES } from './CardTemplates';
 import { ShareComponent } from './ShareComponent';
 import { generateCardImage } from '../services/cardGenerator';
 import { ProgressBar } from './ProgressBar';
@@ -28,7 +28,8 @@ import {
   ShieldCheck,
   ExternalLink,
   ChevronDown,
-  RotateCcw
+  RotateCcw,
+  Film,
 } from 'lucide-react';
 import {
   validatePhoto,
@@ -911,7 +912,7 @@ const StepFour = () => {
 const StepFive = ({ onStartNew }: { onStartNew?: () => void }) => {
   const { state, resetWizard, updateData } = useWizard();
   const savedCardId = useRef<string | null>(null);
-  const cardStyle = state.data.cardStyle || 'classic';
+  const cardStyle = state.data.cardStyle || 'bold';
 
   // Remember which style the card was actually downloaded or emailed in
   const recordStyle = () => {
@@ -927,6 +928,8 @@ const StepFive = ({ onStartNew }: { onStartNew?: () => void }) => {
   const [emailSuccess, setEmailSuccess] = useState(false);
   const [emailError, setEmailError] = useState('');
   const [showDownloadDone, setShowDownloadDone] = useState(false);
+  const [videoProgress, setVideoProgress] = useState<number | null>(null);
+  const [videoError, setVideoError] = useState('');
   const [isReady, setIsReady] = useState(false);
 
   // Save the completed card to Supabase (via the server) once per card
@@ -993,6 +996,46 @@ const StepFive = ({ onStartNew }: { onStartNew?: () => void }) => {
       console.warn('Download error:', err);
     } finally {
       setDownloading(false);
+    }
+  };
+
+  // Animated video download (MP4): short intro, then the finished card holds still
+  const handleDownloadVideo = async () => {
+    if (videoProgress !== null) return;
+    setVideoError('');
+    setVideoProgress(0);
+    try {
+      const { generateCardVideo } = await import('../services/cardVideo');
+      const d = state.data;
+      const { blob, extension } = await generateCardVideo(
+        {
+          recipientName: d.recipientName,
+          relationship: d.relationship,
+          photoUrl: d.photoUrl,
+          selectedTraits: d.selectedTraits,
+          message: d.message,
+          creatorFirstName: d.creatorFirstName,
+          creatorLastName: d.creatorLastName,
+          creatorJobTitle: d.creatorJobTitle,
+          creatorCompany: d.creatorCompany,
+        },
+        cardStyle,
+        (p) => setVideoProgress(p)
+      );
+      const safeName = (d.recipientName || 'card').toLowerCase().replace(/[^a-z0-9]/g, '-');
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `pluto-thank-you-${safeName}.${extension}`;
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      recordStyle();
+      setShowDownloadDone(true);
+    } catch (err) {
+      console.warn('Video export error:', err);
+      setVideoError("We couldn't create the video on this device. Please download the image instead.");
+    } finally {
+      setVideoProgress(null);
     }
   };
 
@@ -1090,6 +1133,19 @@ const StepFive = ({ onStartNew }: { onStartNew?: () => void }) => {
             <span>{downloading ? 'Preparing Card...' : 'DOWNLOAD CARD'}</span>
           </button>
 
+          {/* Animated video (MP4) for LinkedIn, Instagram, WhatsApp */}
+          {ANIMATED_STYLES.includes(cardStyle) && (
+            <button
+              type="button"
+              onClick={handleDownloadVideo}
+              disabled={videoProgress !== null}
+              className="px-5 py-3.5 bg-[#0B1B3D] hover:bg-[#13285A] text-white font-bold rounded-full text-sm flex items-center space-x-2 shadow-md transition-all cursor-pointer disabled:opacity-80"
+            >
+              <Film className="w-4 h-4" />
+              <span>{videoProgress !== null ? `Creating video… ${Math.round(videoProgress * 100)}%` : 'ANIMATED VIDEO'}</span>
+            </button>
+          )}
+
           {/* High-res 1600x1600 download */}
           <button
             type="button"
@@ -1112,6 +1168,12 @@ const StepFive = ({ onStartNew }: { onStartNew?: () => void }) => {
             <span>{emailing ? 'Sending...' : 'SEND TO MY INBOX'}</span>
           </button>
         </div>
+
+        {videoError && (
+          <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-2xl text-xs font-bold inline-block animate-fadeIn">
+            {videoError}
+          </div>
+        )}
 
         {emailError && (
           <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-2xl text-xs font-bold inline-block animate-fadeIn">

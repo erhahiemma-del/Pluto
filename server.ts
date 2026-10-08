@@ -43,8 +43,8 @@ async function startServer() {
     typeof value === 'string' ? value.trim().slice(0, max) : '';
 
   // Save one completed card (no photo or image is stored).
-  const CARD_STYLE_IDS = ['classic', 'warm', 'bold', 'oxblood'];
-  const cleanStyle = (v: unknown) => (CARD_STYLE_IDS.includes(String(v)) ? String(v) : 'classic');
+  const CARD_STYLE_IDS = ['classic', 'warm', 'bold', 'oxblood', 'purple'];
+  const cleanStyle = (v: unknown) => (CARD_STYLE_IDS.includes(String(v)) ? String(v) : 'bold');
 
   app.post('/api/cards', async (req, res) => {
     if (!supabaseAdmin) {

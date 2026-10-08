@@ -168,7 +168,8 @@ export const AdminDashboard = ({ onBackToWizard, onBackToHome }: AdminDashboardP
     .slice(0, 6);
 
   // Card style split
-  const styleCounts = ['classic', 'warm', 'bold', 'oxblood'].map((id) => {
+  const STYLE_NAMES: Record<string, string> = { bold: 'Navy', oxblood: 'Oxblood', purple: 'Purple', warm: 'Warm', classic: 'Classic (old)' };
+  const styleCounts = ['bold', 'oxblood', 'purple', 'warm', 'classic'].map((id) => {
     const count = cards.filter((c) => (c.cardStyle || 'classic') === id).length;
     return { id, count, pct: totalCompleted > 0 ? Math.round((count / totalCompleted) * 100) : 0 };
   });
@@ -553,10 +554,10 @@ export const AdminDashboard = ({ onBackToWizard, onBackToHome }: AdminDashboardP
           <h2 className="text-sm font-bold text-slate-900">Card styles chosen</h2>
           <span className="text-[11px] text-slate-500">Style each card was downloaded or emailed in</span>
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
           {styleCounts.map((s) => (
             <div key={s.id} className="rounded-xl bg-slate-50 px-4 py-3">
-              <div className="text-xs font-semibold uppercase tracking-wider text-slate-500 capitalize">{s.id}</div>
+              <div className="text-xs font-semibold uppercase tracking-wider text-slate-500">{STYLE_NAMES[s.id] || s.id}</div>
               <div className="text-xl font-extrabold text-slate-900">{s.count.toLocaleString()}</div>
               <div className="mt-1 h-1.5 rounded-full bg-slate-200 overflow-hidden">
                 <div className="h-full bg-[#00875A]" style={{ width: `${s.pct}%` }} />

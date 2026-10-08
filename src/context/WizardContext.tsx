@@ -17,7 +17,7 @@ export const INITIAL_CARD_STATE = {
   creatorIndustry: '',
   creatorPhone: '',
   marketingConsent: false,
-  cardStyle: 'classic' as CardStyle,
+  cardStyle: 'bold' as CardStyle,
 };
 
 export type WizardState = {
