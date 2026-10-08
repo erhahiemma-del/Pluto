@@ -14,6 +14,7 @@ import {
   Smile,
   Building,
   MoreHorizontal,
+  UserCheck,
   Check,
   AlertCircle,
   RotateCcw
@@ -42,6 +43,7 @@ export const StepOne: React.FC<StepOneProps> = ({ onBackToHome }) => {
     'Former Employer',
     'Customer',
     'Friend',
+    'Former Employee',
   ];
 
   const [customRel, setCustomRel] = useState(
@@ -77,6 +79,7 @@ export const StepOne: React.FC<StepOneProps> = ({ onBackToHome }) => {
     { id: 'Former Employer', label: 'Former Employer', icon: Building },
     { id: 'Customer', label: 'Customer', icon: Briefcase },
     { id: 'Friend', label: 'Friend', icon: Smile },
+    { id: 'Former Employee', label: 'Former Employee', icon: UserCheck },
     { id: 'Other', label: 'Other', icon: MoreHorizontal },
   ];
 
