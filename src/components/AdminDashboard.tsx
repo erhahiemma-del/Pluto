@@ -75,6 +75,23 @@ export const AdminDashboard = ({ onBackToWizard, onBackToHome }: AdminDashboardP
   });
   const [tokenInput, setTokenInput] = useState('');
   const [loadError, setLoadError] = useState('');
+  const [diagnostics, setDiagnostics] = useState<{ keyRole?: string; lastWriteError?: { message: string; at: string } | null } | null>(null);
+  const [selfTest, setSelfTest] = useState<{ ok: boolean; message: string } | null>(null);
+  const [testing, setTesting] = useState(false);
+
+  const runSelfTest = async () => {
+    setTesting(true);
+    setSelfTest(null);
+    try {
+      const res = await fetch('/api/admin/selftest', { method: 'POST', headers: { 'x-admin-token': adminToken } });
+      const json = await res.json().catch(() => ({}));
+      setSelfTest({ ok: Boolean(json.ok), message: json.message || json.error || `Status ${res.status}` });
+    } catch (err) {
+      setSelfTest({ ok: false, message: 'Could not reach the server.' });
+    } finally {
+      setTesting(false);
+    }
+  };
   const [funnelCounts, setFunnelCounts] = useState<{ step: string; users: number }[]>([]);
 
   const fetchCampaignData = async (token: string = adminToken) => {
@@ -95,6 +112,7 @@ export const AdminDashboard = ({ onBackToWizard, onBackToHome }: AdminDashboardP
       const json = await res.json();
       setCards(Array.isArray(json.cards) ? json.cards : []);
       setFunnelCounts(Array.isArray(json.funnel) ? json.funnel : []);
+      setDiagnostics(json.diagnostics || null);
       setLoadError('');
     } catch (err) {
       console.warn('Failed to load campaign data:', err);
@@ -392,6 +410,34 @@ export const AdminDashboard = ({ onBackToWizard, onBackToHome }: AdminDashboardP
           </div>
         </div>
       )}
+      {diagnostics && diagnostics.keyRole && diagnostics.keyRole !== 'service_role' && (
+        <div className="mb-4 p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-2xl text-sm font-semibold">
+          Cards can't be saved: the SUPABASE_SERVICE_ROLE_KEY in Render is a “{diagnostics.keyRole}” key. In Supabase go to Project Settings → API Keys, copy the
+          service_role (secret) key, paste it into Render → Environment → SUPABASE_SERVICE_ROLE_KEY, then redeploy.
+        </div>
+      )}
+      {diagnostics?.lastWriteError && (
+        <div className="mb-4 p-3 bg-amber-50 border border-amber-200 text-amber-900 rounded-2xl text-sm font-semibold">
+          Last save error ({new Date(diagnostics.lastWriteError.at).toLocaleString()}): {diagnostics.lastWriteError.message}
+        </div>
+      )}
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        <button
+          type="button"
+          onClick={runSelfTest}
+          disabled={testing}
+          className="px-4 py-2 rounded-full border border-slate-300 bg-white text-xs font-bold text-slate-800 hover:bg-slate-50 cursor-pointer"
+        >
+          {testing ? 'Checking database…' : 'Run database check'}
+        </button>
+        {selfTest && (
+          <span className={`text-xs font-semibold ${selfTest.ok ? 'text-emerald-700' : 'text-rose-700'}`}>
+            {selfTest.ok ? '✓ ' : '✗ '}
+            {selfTest.message}
+          </span>
+        )}
+      </div>
+
       {/* Top Header Bar */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 pb-6 border-b border-slate-200">
         <div>
