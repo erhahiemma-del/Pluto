@@ -1,6 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { PlutoLogo } from './PlutoLogo';
 import { CardPreview } from './CardPreview';
+
+// Fixed sample for the homepage hero, so it never shows a visitor's half-finished card
+const HERO_SAMPLE = {
+  recipientName: 'Adaeze Okafor',
+  relationship: 'My Manager',
+  photoUrl: '/african_executive_portrait.jpg',
+  selectedTraits: ['Believed in my potential', 'Opened new opportunities', 'Challenged me to grow'],
+  message: 'You saw something in me before I did. Thank you for every push, every open door and every honest word along the way.',
+  creatorFirstName: 'Tunde',
+  creatorLastName: 'Bello',
+  creatorJobTitle: 'Product Analyst',
+};
 import { TemplateVerificationModal } from './TemplateVerificationModal';
 import {
   ArrowRight,
@@ -261,7 +273,7 @@ export const Homepage: React.FC<HomepageProps> = ({
               <div className="relative w-full max-w-[480px] hero-card-animate hero-card-floating">
                 {/* Subtle soft backdrop shadow blur */}
                 <div className="absolute inset-0 bg-slate-900/10 blur-2xl rounded-[40px] transform translate-y-6 scale-95" />
-                <CardPreview size="responsive" />
+                <CardPreview size="responsive" customData={HERO_SAMPLE} />
               </div>
             </div>
           </div>
