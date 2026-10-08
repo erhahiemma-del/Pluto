@@ -26,10 +26,12 @@ async function startServer() {
 
   // Supabase (server-side only). The service role key never reaches the browser.
   // Uses the URL from AI Studio's Supabase integration (VITE_SUPABASE_URL) if SUPABASE_URL isn't set.
-  const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+  const tidy = (v?: string) => (v || '').trim().replace(/^['"]|['"]$/g, '').replace(/\/+$/, '');
+  const supabaseUrl = tidy(process.env.SUPABASE_URL) || tidy(process.env.VITE_SUPABASE_URL);
+  const supabaseKey = tidy(process.env.SUPABASE_SERVICE_ROLE_KEY);
   const supabaseAdmin =
-    supabaseUrl && process.env.SUPABASE_SERVICE_ROLE_KEY
-      ? createClient(supabaseUrl, process.env.SUPABASE_SERVICE_ROLE_KEY, {
+    supabaseUrl && supabaseKey
+      ? createClient(supabaseUrl, supabaseKey, {
           auth: { persistSession: false },
         })
       : null;
@@ -274,10 +276,35 @@ Return a JSON object in this exact format:
     });
   }
 
-  console.log(supabaseAdmin ? `[Supabase] Connected (tables: ${CARDS_TABLE}, ${EVENTS_TABLE})` : '[Supabase] Not configured: set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY');
+  // Startup check (runs after the server is listening, so it never delays startup)
+  const checkSupabase = async () => {
+    if (!supabaseAdmin) {
+      console.log('[Supabase] Not configured: set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY');
+    } else {
+      let host = '(invalid URL)';
+      try { host = new URL(String(supabaseUrl).trim()).host; } catch {}
+      try {
+        const { error } = await supabaseAdmin.from(CARDS_TABLE).select('id', { count: 'exact', head: true });
+        if (error && /fetch failed/i.test(error.message)) {
+          let reason = '';
+          try { await fetch(`${supabaseUrl}/rest/v1/`); } catch (e: any) { reason = e?.cause?.code || e?.cause?.message || e?.message || ''; }
+          console.log(`[Supabase] Could not reach ${host} (${reason || 'network error'}). Check SUPABASE_URL is exactly your Project URL, e.g. https://<project>.supabase.co`);
+        } else if (error) {
+          console.log(`[Supabase] Reached ${host} but the check failed: ${error.message}`);
+        } else {
+          console.log(`[Supabase] Connected to ${host} (tables: ${CARDS_TABLE}, ${EVENTS_TABLE})`);
+        }
+      } catch (err: any) {
+        console.log(`[Supabase] Could not reach ${host}: ${err?.cause?.code || err?.cause?.message || err?.message || err}`);
+      }
+    }
+  };
 
   const port = process.env.PORT || 3000;
-  app.listen(port, () => console.log(`Server running on port ${port}`));
+  app.listen(port, () => {
+    console.log(`Server running on port ${port}`);
+    checkSupabase();
+  });
 }
 
 startServer();
