@@ -43,7 +43,7 @@ async function startServer() {
     typeof value === 'string' ? value.trim().slice(0, max) : '';
 
   // Save one completed card (no photo or image is stored).
-  const CARD_STYLE_IDS = ['classic', 'warm', 'bold'];
+  const CARD_STYLE_IDS = ['classic', 'warm', 'bold', 'oxblood'];
   const cleanStyle = (v: unknown) => (CARD_STYLE_IDS.includes(String(v)) ? String(v) : 'classic');
 
   app.post('/api/cards', async (req, res) => {

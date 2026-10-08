@@ -1,5 +1,5 @@
 import React from 'react';
-import { PLUTO_LOGO_URL } from '../constants/brand';
+import { PLUTO_LOGO_URL, CAMPAIGN_URL_TEXT } from '../constants/brand';
 
 export interface CardData {
   recipientName?: string;
@@ -403,24 +403,23 @@ export const CardSvgArtboard: React.FC<CardSvgArtboardProps> = ({
         Want to thank someone who went the extra mile?
       </text>
       <g transform="translate(510, 850)">
-        <rect x="0" y="0" width="295" height="52" rx="26" fill="#FFFFFF" filter="url(#portraitShadow)" />
-        <g transform="translate(18, 18)" stroke="#1068EB" strokeWidth="2.2" fill="none" strokeLinecap="round">
+        <rect x="0" y="0" width="318" height="52" rx="26" fill="#FFFFFF" filter="url(#portraitShadow)" />
+        <g transform="translate(16, 19)" stroke="#1068EB" strokeWidth="2.2" fill="none" strokeLinecap="round">
           <path d="M 6 3 A 3 3 0 0 1 10 7 L 8 9 A 3 3 0 0 1 4 5" />
           <path d="M 8 11 A 3 3 0 0 1 4 7 L 6 5 A 3 3 0 0 1 10 9" />
           <line x1="5" y1="9" x2="9" y2="5" />
         </g>
-        <text x="44" y="32" fill="#1068EB" className="svg-sans" fontSize="17" fontWeight="800" letterSpacing="-0.01em">
-          pluto.verifyme.ng/ExtraMile
+        <text x="38" y="32" fill="#1068EB" className="svg-sans" fontSize="14" fontWeight="800" letterSpacing="-0.01em">
+          {CAMPAIGN_URL_TEXT}
         </text>
-        <path d="M 270 26 L 262 21 M 270 26 L 262 31 M 270 26 L 255 26" stroke="#1068EB" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
       </g>
 
       {/* RIGHT FOOTER — USING CENTRAL PLUTO_LOGO_URL */}
       <image
         href={PLUTO_LOGO_URL}
-        x="830"
+        x="845"
         y="830"
-        width="185"
+        width="170"
         height="55"
         preserveAspectRatio="xMidYMid meet"
       />

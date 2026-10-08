@@ -1045,7 +1045,7 @@ const StepFive = ({ onStartNew }: { onStartNew?: () => void }) => {
         {/* Style picker: same details, different look */}
         <div className="max-w-[540px] mx-auto">
           <p className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Choose a style</p>
-          <div role="radiogroup" aria-label="Card style" className="grid grid-cols-3 gap-2">
+          <div role="radiogroup" aria-label="Card style" className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             {CARD_STYLES.map((s) => {
               const active = cardStyle === s.id;
               return (

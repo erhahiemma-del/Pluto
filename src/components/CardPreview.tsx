@@ -1,7 +1,7 @@
 import React from 'react';
 import { useWizard } from '../context/WizardContext';
 import { CardData } from './CardSvgArtboard';
-import { CardArtboard } from './CardTemplates';
+import { CardArtboard, SQUARE_STYLES } from './CardTemplates';
 
 interface CardPreviewProps {
   id?: string;
@@ -31,10 +31,11 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
   };
 
   const isExport = size === 'export';
+  const isSquare = SQUARE_STYLES.includes(state.data.cardStyle || 'classic');
 
   return (
     <div
-      className="card-stage w-full relative aspect-square overflow-hidden rounded-[32px] sm:rounded-[36px] select-none"
+      className={`card-stage w-full relative aspect-square overflow-hidden select-none ${isSquare ? (isExport ? 'rounded-none' : 'rounded-md') : 'rounded-[32px] sm:rounded-[36px]'}`}
       style={{
         boxShadow: isExport ? 'none' : '0 20px 50px -10px rgba(11, 27, 61, 0.18)',
         backgroundColor: '#FFFFFF',

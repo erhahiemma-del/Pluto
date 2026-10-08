@@ -1,16 +1,19 @@
 import React from 'react';
-import { PLUTO_LOGO_URL } from '../constants/brand';
+import { CAMPAIGN_URL_TEXT } from '../constants/brand';
 import { CardData, CardSvgArtboard, CardSvgArtboardProps, getAttributeConfig, wrapText } from './CardSvgArtboard';
 
-export type CardStyle = 'classic' | 'warm' | 'bold';
+export type CardStyle = 'classic' | 'warm' | 'bold' | 'oxblood';
+
+/** Styles exported with square corners. */
+export const SQUARE_STYLES: string[] = ['bold', 'oxblood'];
 
 export const CARD_STYLES: { id: CardStyle; label: string; description: string; swatch: string[] }[] = [
   { id: 'classic', label: 'Classic', description: 'Clean and confident', swatch: ['#FFFFFF', '#1068EB', '#00273B'] },
   { id: 'warm', label: 'Warm', description: 'Heartfelt, like a handwritten note', swatch: ['#FBF6EE', '#C9A227', '#7A4E1D'] },
   { id: 'bold', label: 'Bold', description: 'Big, bright and made to share', swatch: ['#071A3A', '#00E5A3', '#2563EB'] },
+  { id: 'oxblood', label: 'Oxblood', description: 'Rich, refined and confident', swatch: ['#3B0A14', '#F2B8C6', '#8E1B33'] },
 ];
 
-const CAMPAIGN_URL_TEXT = 'pluto.verifyme.ng/ExtraMile';
 const HASHTAG = '#ThoseWhoWentTheExtraMile';
 
 /** Shared content rules, kept identical to the Classic card. */
@@ -182,16 +185,16 @@ export const CardSvgWarm: React.FC<CardSvgArtboardProps> = ({ data, id = 'card-s
         <tspan x="60" dy="38">career history. Make sure they know.</tspan>
       </text>
       <text x="530" y="930" fill="#7A4E1D" className="svg-sans" fontSize="15" fontWeight="600">
-        Want to thank someone who went the extra mile?
+        Who went the extra mile for you?
       </text>
       <g transform="translate(530, 946)">
-        <rect width="270" height="46" rx="23" fill="#FFFFFF" stroke="#C9A227" strokeWidth="1.5" />
-        <text x="135" y="29" textAnchor="middle" fill="#9A6B12" className="svg-sans" fontSize="16" fontWeight="800">
+        <rect width="320" height="46" rx="23" fill="#FFFFFF" stroke="#C9A227" strokeWidth="1.5" />
+        <text x="160" y="29" textAnchor="middle" fill="#9A6B12" className="svg-sans" fontSize="14.5" fontWeight="800">
           {CAMPAIGN_URL_TEXT}
         </text>
       </g>
-      <image href={PLUTO_LOGO_URL} x="840" y="902" width="180" height="52" preserveAspectRatio="xMaxYMid meet" />
-      <text x="1018" y="974" textAnchor="end" fill="#2B1B0E" className="svg-sans" fontSize="14" fontWeight="700">
+      <PlutoMark x={886} y={908} scale={0.8} idPrefix="warm" />
+      <text x="952" y="975" textAnchor="middle" fill="#2B1B0E" className="svg-sans" fontSize="13" fontWeight="700">
         by VerifyMe
       </text>
       <text x="1018" y="1032" textAnchor="end" fill="#B7791F" className="svg-sans" fontSize="14" fontWeight="800">
@@ -204,66 +207,133 @@ export const CardSvgWarm: React.FC<CardSvgArtboardProps> = ({ data, id = 'card-s
 /* =========================================================================
    BOLD: full-height photo, deep navy panel, huge name, mint and blue accents
    ========================================================================= */
-export const CardSvgBold: React.FC<CardSvgArtboardProps> = ({ data, id = 'card-svg-bold', className = '', style = {} }) => {
+/** Vector Pluto mark (open box + wordmark). Native width 165, height 54 at scale 1. */
+export const PlutoMark: React.FC<{ x: number; y: number; scale?: number; wordColor?: string; idPrefix: string }> = ({
+  x,
+  y,
+  scale = 1,
+  wordColor = '#4356FF',
+  idPrefix,
+}) => (
+  <g transform={`translate(${x}, ${y}) scale(${scale})`}>
+    <defs>
+      <clipPath id={`${idPrefix}-opening`}>
+        <polygon points="0,17 17,0 43,8 27,26" />
+      </clipPath>
+      <linearGradient id={`${idPrefix}-front`} x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stopColor="#4C5DFF" />
+        <stop offset="1" stopColor="#3A4BF0" />
+      </linearGradient>
+    </defs>
+    <polygon points="0,17 17,0 43,8 27,26" fill="#2F3DC4" />
+    <polygon points="0,17 17,0 17,13 7,21" fill="#8C98FA" clipPath={`url(#${idPrefix}-opening)`} />
+    <circle cx="20" cy="23" r="7.5" fill="#E4E7FF" clipPath={`url(#${idPrefix}-opening)`} />
+    <polygon points="0,17 27,26 27,52 0,43" fill={`url(#${idPrefix}-front)`} />
+    <polygon points="27,26 43,8 43,34 27,52" fill="#A7B0FC" />
+    <text x="58" y="38" fill={wordColor} className="svg-sans" fontSize="24" fontWeight="500" letterSpacing="4.5">
+      PLUTO
+    </text>
+  </g>
+);
+
+type BoldTheme = {
+  key: string;
+  bg: string;
+  accent: string;
+  pillBg: string;
+  pillText: string;
+  msg: string;
+  role: string;
+  label: string;
+  traitText: string;
+};
+
+const BOLD_THEMES: Record<'navy' | 'oxblood', BoldTheme> = {
+  navy: {
+    key: 'navy',
+    bg: '#071A3A',
+    accent: '#00E5A3',
+    pillBg: '#2563EB',
+    pillText: '#FFFFFF',
+    msg: '#FFFFFF',
+    role: '#94A3B8',
+    label: '#CBD5E1',
+    traitText: '#E6FFF7',
+  },
+  oxblood: {
+    key: 'oxblood',
+    bg: '#3B0A14',
+    accent: '#F2B8C6',
+    pillBg: '#F2B8C6',
+    pillText: '#3B0A14',
+    msg: '#FFF4F6',
+    role: '#D8A7B3',
+    label: '#E9C7CF',
+    traitText: '#FFE9EE',
+  },
+};
+
+const CardSvgBoldThemed: React.FC<CardSvgArtboardProps & { theme: BoldTheme }> = ({ data, id, className = '', style = {}, theme: t }) => {
   const c = prepare(data);
+  const p = `bold-${t.key}`;
   const nameSize = fitFont(c.recipientName + '.', 520, 84, 40, 0.55);
+  const relW = Math.round(c.relationship.length * 13.4 + 40);
+  const relY = 178 + nameSize;
+  const msgY = relY + 135;
   const { size: msgSize, lineH, lines: msgLines } = messageLayout(c.message, 36);
-  const msgY = 395;
-  const { pills, rowCount } = flowPills(c.traitLabels.map((t) => t.label), 505, 15, 16, 10, 2);
+  const { pills, rowCount } = flowPills(c.traitLabels.map((x) => x.label), 505, 15, 16, 10, 2);
   const pillsY = msgY + (msgLines.length - 1) * lineH + 40;
   const senderY = pillsY + rowCount * 48 + 44;
 
   return (
-    <svg id={id} viewBox="0 0 1080 1080" width="1080" height="1080" xmlns="http://www.w3.org/2000/svg" className={className} style={svgStyle(style)}>
+    <svg id={id} viewBox="0 0 1080 1080" width="1080" height="1080" xmlns="http://www.w3.org/2000/svg" className={className} style={svgStyle({ borderRadius: 0, ...style })}>
       <defs>
         <FontDefs />
-        <linearGradient id="boldPhotoFade" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0.5" stopColor="#071A3A" stopOpacity="0" />
-          <stop offset="1" stopColor="#071A3A" stopOpacity="0.95" />
+        <linearGradient id={`${p}-photoFade`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0.5" stopColor={t.bg} stopOpacity="0" />
+          <stop offset="1" stopColor={t.bg} stopOpacity="0.95" />
         </linearGradient>
-        <linearGradient id="boldEdgeFade" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0" stopColor="#071A3A" stopOpacity="0" />
-          <stop offset="1" stopColor="#071A3A" stopOpacity="1" />
+        <linearGradient id={`${p}-edgeFade`} x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stopColor={t.bg} stopOpacity="0" />
+          <stop offset="1" stopColor={t.bg} stopOpacity="1" />
         </linearGradient>
       </defs>
 
       {/* Background + photo */}
-      <rect width="1080" height="1080" fill="#071A3A" />
+      <rect width="1080" height="1080" fill={t.bg} />
       <image href={c.photoUrl} x="0" y="0" width="480" height="1080" preserveAspectRatio="xMidYMid slice" />
-      <rect x="0" y="0" width="480" height="1080" fill="url(#boldPhotoFade)" />
-      <rect x="400" y="0" width="80" height="1080" fill="url(#boldEdgeFade)" />
-      <circle cx="1040" cy="60" r="230" fill="#2563EB" opacity="0.18" />
-      <circle cx="1060" cy="40" r="120" fill="#00E5A3" opacity="0.12" />
+      <rect x="0" y="0" width="480" height="1080" fill={`url(#${p}-photoFade)`} />
+      <rect x="400" y="0" width="80" height="1080" fill={`url(#${p}-edgeFade)`} />
 
       {/* Photo-side footer */}
       <text x="48" y="930" fill="#FFFFFF" className="svg-script" fontSize="34" fontWeight="700">
         <tspan x="48">Some people are part of your</tspan>
         <tspan x="48" dy="40">career history. Make sure they know.</tspan>
       </text>
-      <text x="48" y="1035" fill="#00E5A3" className="svg-sans" fontSize="18" fontWeight="800">
+      <text x="48" y="1035" fill={t.accent} className="svg-sans" fontSize="18" fontWeight="800">
         {HASHTAG}
       </text>
 
       {/* Headline */}
-      <text x="520" y="140" fill="#00E5A3" className="svg-sans" fontSize="28" fontWeight="800" letterSpacing="0.22em">
+      <text x="520" y="140" fill={t.accent} className="svg-sans" fontSize="28" fontWeight="800" letterSpacing="0.22em">
         THANK YOU,
       </text>
-      <text x="518" y={140 + nameSize * 0.98} fill="#FFFFFF" className="svg-sans" fontSize={nameSize} fontWeight="900" letterSpacing="-0.03em">
+      <text x="518" y={140 + nameSize * 0.98} fill="#FFFFFF" className="svg-sans" fontSize={nameSize} fontWeight="800" letterSpacing="-0.03em">
         {c.recipientName}
-        <tspan fill="#00E5A3">.</tspan>
+        <tspan fill={t.accent}>.</tspan>
       </text>
-      <g transform={`translate(520, ${178 + nameSize})`}>
-        <rect width={Math.round(c.relationship.length * 13.4 + 40)} height="40" rx="20" fill="#2563EB" />
-        <text x="18" y="26" fill="#FFFFFF" className="svg-sans" fontSize="16" fontWeight="800" letterSpacing="0.12em">
+      <g transform={`translate(520, ${relY})`}>
+        <rect width={relW} height="40" rx="20" fill={t.pillBg} />
+        <text x="20" y="26" fill={t.pillText} className="svg-sans" fontSize="16" fontWeight="800" letterSpacing="0.12em">
           {c.relationship.toUpperCase()}
         </text>
       </g>
 
-      {/* Message with oversized quote marks */}
-      <text x="512" y={msgY + 36} fill="#00E5A3" className="svg-sans" fontSize="120" fontWeight="900">
+      {/* Message */}
+      <text x="512" y={msgY + 36} fill={t.accent} className="svg-sans" fontSize="120" fontWeight="800">
         “
       </text>
-      <text x="520" y={msgY + 30} fill="#FFFFFF" className="svg-sans" fontSize={msgSize} fontWeight="500">
+      <text x="520" y={msgY + 30} fill={t.msg} className="svg-sans" fontSize={msgSize} fontWeight="500">
         {msgLines.map((l, i) => (
           <tspan key={i} x="520" dy={i === 0 ? 0 : lineH}>
             {l}
@@ -272,46 +342,58 @@ export const CardSvgBold: React.FC<CardSvgArtboardProps> = ({ data, id = 'card-s
       </text>
 
       {/* Traits */}
-      {pills.map((p) => (
-        <g key={p.label} transform={`translate(${520 + p.x}, ${pillsY + 30 + p.row * 48})`}>
-          <rect width={p.w} height="36" rx="18" fill="none" stroke="#00E5A3" strokeWidth="1.8" />
-          <text x={p.w / 2} y="24" textAnchor="middle" fill="#E6FFF7" className="svg-sans" fontSize="15" fontWeight="700" letterSpacing="0.01em">
-            {p.label}
+      {pills.map((x) => (
+        <g key={x.label} transform={`translate(${520 + x.x}, ${pillsY + 30 + x.row * 48})`}>
+          <rect width={x.w} height="36" rx="18" fill="none" stroke={t.accent} strokeWidth="1.8" />
+          <text x={x.w / 2} y="24" textAnchor="middle" fill={t.traitText} className="svg-sans" fontSize="15" fontWeight="700" letterSpacing="0.01em">
+            {x.label}
           </text>
         </g>
       ))}
 
       {/* Sender */}
-      <rect x="520" y={senderY + 22} width="40" height="4" rx="2" fill="#00E5A3" />
-      <text x="520" y={senderY + 62} fill="#FFFFFF" className="svg-sans" fontSize="30" fontWeight="800">
+      <text x="520" y={senderY + 30} fill={t.accent} className="svg-sans" fontSize="13" fontWeight="800" letterSpacing="0.2em">
+        WITH GRATITUDE,
+      </text>
+      <text x="520" y={senderY + 66} fill="#FFFFFF" className="svg-sans" fontSize="30" fontWeight="800">
         {c.senderName}
       </text>
-      <text x="520" y={senderY + 92} fill="#94A3B8" className="svg-sans" fontSize="19" fontWeight="500">
+      <text x="520" y={senderY + 96} fill={t.role} className="svg-sans" fontSize="19" fontWeight="500">
         {c.senderRole}
       </text>
 
       {/* Right footer: link + logo */}
-      <text x="520" y="945" fill="#CBD5E1" className="svg-sans" fontSize="15" fontWeight="600">
+      <line x1="520" y1="890" x2="1032" y2="890" stroke={t.accent} strokeOpacity="0.3" strokeWidth="1.5" />
+      <text x="520" y="930" fill={t.label} className="svg-sans" fontSize="15" fontWeight="600">
         Who went the extra mile for you?
       </text>
-      <g transform="translate(520, 962)">
-        <rect width="290" height="48" rx="24" fill="#FFFFFF" />
-        <text x="145" y="30" textAnchor="middle" fill="#071A3A" className="svg-sans" fontSize="16" fontWeight="800">
+      <g transform="translate(520, 948)">
+        <rect width="330" height="50" rx="25" fill="#FFFFFF" />
+        <text x="165" y="31" textAnchor="middle" fill={t.bg} className="svg-sans" fontSize="15" fontWeight="800">
           {CAMPAIGN_URL_TEXT}
         </text>
       </g>
-      <rect x="830" y="932" width="200" height="86" rx="18" fill="#FFFFFF" />
-      <image href={PLUTO_LOGO_URL} x="846" y="940" width="168" height="50" preserveAspectRatio="xMaxYMid meet" />
-      <text x="1012" y="1006" textAnchor="end" fill="#071A3A" className="svg-sans" fontSize="13" fontWeight="700">
+      <rect x="868" y="908" width="164" height="104" rx="10" fill="#FFFFFF" />
+      <PlutoMark x={950 - 66} y={926} scale={0.8} idPrefix={p} />
+      <text x="950" y="990" textAnchor="middle" fill={t.bg} className="svg-sans" fontSize="13" fontWeight="700">
         by VerifyMe
       </text>
     </svg>
   );
 };
 
+export const CardSvgBold: React.FC<CardSvgArtboardProps> = ({ id = 'card-svg-bold', ...props }) => (
+  <CardSvgBoldThemed {...props} id={id} theme={BOLD_THEMES.navy} />
+);
+
+export const CardSvgOxblood: React.FC<CardSvgArtboardProps> = ({ id = 'card-svg-oxblood', ...props }) => (
+  <CardSvgBoldThemed {...props} id={id} theme={BOLD_THEMES.oxblood} />
+);
+
 /** Renders the card in the chosen style. */
 export const CardArtboard: React.FC<CardSvgArtboardProps & { cardStyle?: string }> = ({ cardStyle, ...props }) => {
   if (cardStyle === 'warm') return <CardSvgWarm {...props} />;
   if (cardStyle === 'bold') return <CardSvgBold {...props} />;
+  if (cardStyle === 'oxblood') return <CardSvgOxblood {...props} />;
   return <CardSvgArtboard {...props} />;
 };

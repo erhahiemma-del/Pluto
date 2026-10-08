@@ -168,7 +168,7 @@ export const AdminDashboard = ({ onBackToWizard, onBackToHome }: AdminDashboardP
     .slice(0, 6);
 
   // Card style split
-  const styleCounts = ['classic', 'warm', 'bold'].map((id) => {
+  const styleCounts = ['classic', 'warm', 'bold', 'oxblood'].map((id) => {
     const count = cards.filter((c) => (c.cardStyle || 'classic') === id).length;
     return { id, count, pct: totalCompleted > 0 ? Math.round((count / totalCompleted) * 100) : 0 };
   });
@@ -553,7 +553,7 @@ export const AdminDashboard = ({ onBackToWizard, onBackToHome }: AdminDashboardP
           <h2 className="text-sm font-bold text-slate-900">Card styles chosen</h2>
           <span className="text-[11px] text-slate-500">Style each card was downloaded or emailed in</span>
         </div>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {styleCounts.map((s) => (
             <div key={s.id} className="rounded-xl bg-slate-50 px-4 py-3">
               <div className="text-xs font-semibold uppercase tracking-wider text-slate-500 capitalize">{s.id}</div>

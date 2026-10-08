@@ -597,7 +597,7 @@ export const CanonicalCard: React.FC<CanonicalCardProps> = ({ data, id }) => {
 
               {/* White CTA Pill Button with Visible URL */}
               <a
-                href="http://pluto.verifyme.ng/ExtraMile"
+                href="https://pluto-thank-you-cards.onrender.com"
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{
@@ -621,7 +621,7 @@ export const CanonicalCard: React.FC<CanonicalCardProps> = ({ data, id }) => {
                     letterSpacing: '-0.01em',
                   }}
                 >
-                  pluto.verifyme.ng/ExtraMile
+                  pluto-thank-you-cards.onrender.com
                 </span>
                 <ArrowRight size={18} color="#1068EB" strokeWidth={2.4} />
               </a>
