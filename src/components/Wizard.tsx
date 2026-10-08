@@ -156,7 +156,7 @@ export const Wizard = ({
    ========================================================================= */
 const StepTwo = () => {
   const { updateData, nextStep, prevStep, state } = useWizard();
-  const [imageSrc, setImageSrc] = useState(state.data.photoUrl || '/african_executive_portrait.jpg');
+  const [imageSrc, setImageSrc] = useState(state.data.photoUrl || '');
   const [crop, setCrop] = useState<Point>({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [isCropping, setIsCropping] = useState(false);
@@ -359,18 +359,6 @@ const StepThree = () => {
     'Went the extra mile',
   ];
 
-  // Default selection if empty
-  useEffect(() => {
-    if (!state.data.selectedTraits || state.data.selectedTraits.length === 0) {
-      updateData({
-        selectedTraits: [
-          'Believed in my potential',
-          'Opened new opportunities',
-          'Challenged me to grow',
-        ],
-      });
-    }
-  }, []);
 
   const selectedTraits = state.data.selectedTraits || [];
   const traitsValidation = validateTraits(selectedTraits);
@@ -968,7 +956,7 @@ const StepFive = ({ onStartNew }: { onStartNew?: () => void }) => {
 
   // Internal Quality Check Validation (Section 34)
   const qualityChecks = [
-    { label: 'Recipient photo present', pass: Boolean(state.data.photoUrl || '/african_executive_portrait.jpg') },
+    { label: 'Recipient photo present', pass: Boolean(state.data.photoUrl) },
     { label: 'Recipient name visible', pass: Boolean(state.data.recipientName && state.data.recipientName.trim().length >= 2) },
     { label: 'Relationship visible', pass: Boolean(state.data.relationship) },
     { label: '2–5 appreciation attributes', pass: (state.data.selectedTraits?.length || 0) >= 2 && (state.data.selectedTraits?.length || 0) <= 5 },

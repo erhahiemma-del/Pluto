@@ -165,8 +165,8 @@ export const CardSvgArtboard: React.FC<CardSvgArtboardProps> = ({
   style = {},
 }) => {
   // Recipient Name
-  const rawName = (data.recipientName || 'John Doe').trim();
-  const recipientName = rawName || 'John Doe';
+  const rawName = (data.recipientName || 'Their Name').trim();
+  const recipientName = rawName || 'Their Name';
 
   // Relationship
   const rawRel = (data.relationship || 'Colleague').trim();
@@ -196,8 +196,8 @@ export const CardSvgArtboard: React.FC<CardSvgArtboardProps> = ({
   // Sender Name & Role
   const senderName =
     [data.creatorFirstName, data.creatorLastName].filter(Boolean).join(' ').trim() ||
-    'Victoria Okodu';
-  const senderRole = (data.creatorJobTitle || 'Developer').trim();
+    'Your Name';
+  const senderRole = (data.creatorJobTitle || 'Your Role').trim();
 
   // Font sizing for Recipient Name (74px -> min 58px)
   let nameFontSize = 74;

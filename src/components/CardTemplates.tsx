@@ -24,7 +24,7 @@ const HASHTAG = '#ThoseWhoWentTheExtraMile';
 
 /** Shared content rules, kept identical to the Classic card. */
 const prepare = (data: CardData) => {
-  const recipientName = (data.recipientName || 'John Doe').trim() || 'John Doe';
+  const recipientName = (data.recipientName || 'Their Name').trim() || 'Their Name';
   const rawRel = (data.relationship || 'Colleague').trim().replace(/\.$/, '');
   const relationship = rawRel.toLowerCase().startsWith('my ') ? rawRel : `My ${rawRel}`;
   const photoUrl = data.photoUrl || '/african_executive_portrait.jpg';
@@ -42,8 +42,8 @@ const prepare = (data: CardData) => {
     (data.message || '').trim() ||
     'You didn’t just give direction. You gave me opportunity, challenged me to grow, and believed in me when I doubted myself.';
   const senderName =
-    [data.creatorFirstName, data.creatorLastName].filter(Boolean).join(' ').trim() || 'Victoria Okodu';
-  const senderRole = (data.creatorJobTitle || 'Developer').trim();
+    [data.creatorFirstName, data.creatorLastName].filter(Boolean).join(' ').trim() || 'Your Name';
+  const senderRole = (data.creatorJobTitle || 'Your Role').trim();
   return { recipientName, relationship, photoUrl, traitLabels, message, senderName, senderRole };
 };
 
