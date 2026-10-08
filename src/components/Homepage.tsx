@@ -305,10 +305,10 @@ export const Homepage: React.FC<HomepageProps> = ({
                 </div>
                 <div>
                   <h4 className="text-base font-extrabold text-slate-900 tracking-tight">
-                    Send
+                    Download
                   </h4>
                   <p className="text-xs sm:text-sm text-slate-500">
-                    Get your card in your inbox
+                    Save it as an image or short video
                   </p>
                 </div>
               </div>
