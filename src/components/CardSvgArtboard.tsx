@@ -424,6 +424,9 @@ export const CardSvgArtboard: React.FC<CardSvgArtboardProps> = ({
         height="55"
         preserveAspectRatio="xMidYMid meet"
       />
+      <text x="1015" y="902" textAnchor="end" fill="#E2E8F0" className="svg-sans" fontSize="15" fontWeight="700" letterSpacing="0.01em">
+        by VerifyMe
+      </text>
       <text x="835" y="930" fill="#00E5A3" className="svg-sans" fontSize="15" fontWeight="800" letterSpacing="-0.01em">
         #ThoseWhoWentTheExtraMile
       </text>
