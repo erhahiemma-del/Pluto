@@ -35,6 +35,23 @@ async function startServer() {
           auth: { persistSession: false },
         })
       : null;
+  // Which kind of key was given? Only the service role / secret key can write (RLS blocks the public key).
+  const keyRole = (() => {
+    if (!supabaseKey) return 'missing';
+    if (supabaseKey.startsWith('sb_secret_')) return 'service_role';
+    if (supabaseKey.startsWith('sb_publishable_')) return 'anon';
+    try {
+      const payload = JSON.parse(Buffer.from(supabaseKey.split('.')[1], 'base64url').toString('utf8'));
+      return String(payload.role || 'unknown');
+    } catch {
+      return 'unknown';
+    }
+  })();
+  // Most recent database write failure, shown on the admin dashboard
+  let lastWriteError: { message: string; at: string } | null = null;
+  const noteWriteError = (message: string) => {
+    lastWriteError = { message, at: new Date().toISOString() };
+  };
   const CARDS_TABLE = process.env.SUPABASE_CARDS_TABLE || 'extra_mile_cards';
   const EVENTS_TABLE = process.env.SUPABASE_EVENTS_TABLE || 'extra_mile_events';
   const FUNNEL_STEPS = ['Who you are thanking', 'Photo', 'Personalise', 'Your details', 'Card created'];
@@ -77,6 +94,7 @@ async function startServer() {
     }
     if (error || !data) {
       console.log('[Supabase] Insert failed:', error?.message);
+      noteWriteError(`Card save failed: ${error?.message || 'no data returned'}`);
       return res.status(500).json({ error: 'Could not save card' });
     }
     return res.json({ id: data.id });
@@ -104,7 +122,10 @@ async function startServer() {
       return res.status(400).json({ error: 'Invalid event' });
     }
     const { error } = await supabaseAdmin.from(EVENTS_TABLE).insert({ session_id: sessionId, step });
-    if (error) console.log('[Supabase] Event insert failed:', error.message);
+    if (error) {
+      console.log('[Supabase] Event insert failed:', error.message);
+      noteWriteError(`Progress event failed: ${error.message}`);
+    }
     return res.status(204).end();
   });
 
@@ -164,7 +185,7 @@ async function startServer() {
       }));
     }
 
-    return res.json({ cards, funnel });
+    return res.json({ cards, funnel, diagnostics: { keyRole, lastWriteError } });
   });
 
   app.post('/api/generate-message', async (req, res) => {
@@ -312,6 +333,26 @@ Return a JSON object in this exact format:
     });
   }
 
+  // Admin: write a test card, then delete it. Tells you exactly why saving fails, if it does.
+  app.post('/api/admin/selftest', async (req, res) => {
+    const token = process.env.ADMIN_TOKEN;
+    if (!token || req.get('x-admin-token') !== token) return res.status(401).json({ error: 'Unauthorized' });
+    if (!supabaseAdmin) return res.json({ ok: false, keyRole, message: 'Database not configured: set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in Render.' });
+    const { data, error } = await supabaseAdmin
+      .from(CARDS_TABLE)
+      .insert({ recipient_name: 'Self-test', campaign: 'SelfTest' })
+      .select('id')
+      .single();
+    if (error || !data) {
+      return res.json({ ok: false, keyRole, message: error?.message || 'Insert returned no row' });
+    }
+    await supabaseAdmin.from(CARDS_TABLE).delete().eq('id', data.id);
+    const ev = await supabaseAdmin.from(EVENTS_TABLE).insert({ session_id: 'selftest', step: 1 });
+    if (ev.error) return res.json({ ok: false, keyRole, message: `Cards table OK, events table failed: ${ev.error.message}` });
+    await supabaseAdmin.from(EVENTS_TABLE).delete().eq('session_id', 'selftest');
+    return res.json({ ok: true, keyRole, message: 'Saving works: a test card was written and removed.' });
+  });
+
   // Startup check (runs after the server is listening, so it never delays startup)
   const checkSupabase = async () => {
     if (!supabaseAdmin) {
@@ -329,6 +370,7 @@ Return a JSON object in this exact format:
           console.log(`[Supabase] Reached ${host} but the check failed: ${error.message}`);
         } else {
           console.log(`[Supabase] Connected to ${host} (tables: ${CARDS_TABLE}, ${EVENTS_TABLE})`);
+          if (keyRole !== 'service_role') console.log(`[Supabase] WARNING: SUPABASE_SERVICE_ROLE_KEY looks like a '${keyRole}' key. Cards cannot be saved with it; use the service_role (secret) key.`);
         }
       } catch (err: any) {
         console.log(`[Supabase] Could not reach ${host}: ${err?.cause?.code || err?.cause?.message || err?.message || err}`);
