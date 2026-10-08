@@ -265,6 +265,11 @@ Return a JSON object in this exact format:
     app.use(vite.middlewares);
   } else {
     app.use(express.static('dist'));
+    // Single-page app: send index.html for any other page path (e.g. /ExtraMile)
+    app.get('*', (req, res, next) => {
+      if (req.path.startsWith('/api/')) return next();
+      res.sendFile('index.html', { root: 'dist' });
+    });
   }
 
   const port = process.env.PORT || 3000;
