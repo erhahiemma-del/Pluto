@@ -268,10 +268,23 @@ Return a JSON object in this exact format:
     });
     app.use(vite.middlewares);
   } else {
-    app.use(express.static('dist'));
+    // index.html must never be cached, so visitors always get the latest version after a deploy.
+    // Hashed files in /assets can be cached for a long time.
+    app.use(
+      express.static('dist', {
+        setHeaders: (res, filePath) => {
+          if (filePath.endsWith('.html')) {
+            res.setHeader('Cache-Control', 'no-cache');
+          } else if (filePath.includes(`${'/'}assets${'/'}`)) {
+            res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+          }
+        },
+      })
+    );
     // Single-page app: send index.html for any other page path (e.g. /ExtraMile)
     app.get('*', (req, res, next) => {
       if (req.path.startsWith('/api/')) return next();
+      res.setHeader('Cache-Control', 'no-cache');
       res.sendFile('index.html', { root: 'dist' });
     });
   }
