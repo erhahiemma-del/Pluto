@@ -41,6 +41,9 @@ import {
   validatePhone,
 } from '../utils/validation';
 
+// Pluto's main website, linked from the download-complete message
+const PLUTO_SITE_URL = 'https://pluto.verifyme.ng';
+
 export const Wizard = ({
   onBackToHome,
   onOpenAdmin,
@@ -910,6 +913,7 @@ const StepFive = ({ onStartNew }: { onStartNew?: () => void }) => {
   const [emailing, setEmailing] = useState(false);
   const [emailSuccess, setEmailSuccess] = useState(false);
   const [emailError, setEmailError] = useState('');
+  const [showDownloadDone, setShowDownloadDone] = useState(false);
   const [isReady, setIsReady] = useState(false);
 
   // Save the completed card to Supabase (via the server) once per card
@@ -964,6 +968,7 @@ const StepFive = ({ onStartNew }: { onStartNew?: () => void }) => {
       link.href = dataUrl;
       link.download = filename;
       link.click();
+      setShowDownloadDone(true);
     } catch (err) {
       console.warn('Download error:', err);
     } finally {
@@ -1077,6 +1082,60 @@ const StepFive = ({ onStartNew }: { onStartNew?: () => void }) => {
             creatorEmail={state.data.creatorEmail}
           />
         </div>
+
+        {/* Download complete: next steps */}
+        {showDownloadDone && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 px-4 animate-fadeIn"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="download-done-title"
+            onClick={() => setShowDownloadDone(false)}
+          >
+            <div
+              className="w-full max-w-sm bg-white rounded-3xl shadow-xl p-6 text-center space-y-4"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="mx-auto w-14 h-14 rounded-full bg-emerald-50 text-[#00875A] flex items-center justify-center text-2xl font-bold">
+                ✓
+              </div>
+              <h3 id="download-done-title" className="text-xl font-extrabold text-[#0B1B3D]">
+                Your card is downloaded
+              </h3>
+              <p className="text-sm text-slate-600">
+                Share it and tag {state.data.recipientName || 'them'} so they know they went the extra mile for you.
+              </p>
+              <div className="flex flex-col gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowDownloadDone(false);
+                    resetWizard();
+                    if (onStartNew) onStartNew();
+                  }}
+                  className="w-full px-5 py-3 bg-[#00875A] hover:bg-[#00704A] text-white font-bold rounded-full text-sm"
+                >
+                  Create another card
+                </button>
+                <a
+                  href={PLUTO_SITE_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full px-5 py-3 bg-white border border-slate-300 hover:bg-slate-50 text-slate-800 font-bold rounded-full text-sm"
+                >
+                  Visit Pluto
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setShowDownloadDone(false)}
+                  className="text-xs text-slate-500 hover:text-slate-700 pt-1"
+                >
+                  Back to my card
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Restart or Create Another */}
         <div className="pt-8 border-t border-slate-200 flex justify-center items-center space-x-4">

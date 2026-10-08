@@ -375,6 +375,13 @@ export const AdminDashboard = ({ onBackToWizard, onBackToHome }: AdminDashboardP
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fadeIn">
+      {loadError && (
+        <div className="mb-4">
+          <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-2xl text-sm font-semibold">
+            {loadError} If this keeps happening, check the server logs for a [Supabase] message.
+          </div>
+        </div>
+      )}
       {/* Top Header Bar */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 pb-6 border-b border-slate-200">
         <div>
@@ -509,7 +516,7 @@ export const AdminDashboard = ({ onBackToWizard, onBackToHome }: AdminDashboardP
               Leading Industry
             </span>
             <div className="text-2xl font-extrabold text-slate-900 mt-0.5 truncate max-w-[150px]">
-              {industryData[0]?.name || 'Fintech'}
+              {industryData[0]?.name || '—'}
             </div>
             <span className="text-[11px] text-sky-700 font-medium">
               {industryData[0]?.percentage || 0}% of campaign volume

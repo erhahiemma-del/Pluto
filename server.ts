@@ -43,6 +43,7 @@ async function startServer() {
   // Save one completed card (no photo or image is stored).
   app.post('/api/cards', async (req, res) => {
     if (!supabaseAdmin) {
+      console.log('[Supabase] Database not configured: card not saved');
       return res.status(503).json({ error: 'Database not configured' });
     }
     const b = req.body || {};
@@ -90,6 +91,7 @@ async function startServer() {
       return res.status(401).json({ error: 'Unauthorized' });
     }
     if (!supabaseAdmin) {
+      console.log('[Supabase] Database not configured: set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY');
       return res.status(503).json({ error: 'Database not configured' });
     }
     const { data, error } = await supabaseAdmin
@@ -271,6 +273,8 @@ Return a JSON object in this exact format:
       res.sendFile('index.html', { root: 'dist' });
     });
   }
+
+  console.log(supabaseAdmin ? `[Supabase] Connected (tables: ${CARDS_TABLE}, ${EVENTS_TABLE})` : '[Supabase] Not configured: set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY');
 
   const port = process.env.PORT || 3000;
   app.listen(port, () => console.log(`Server running on port ${port}`));
