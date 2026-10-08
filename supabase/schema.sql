@@ -13,8 +13,12 @@ create table if not exists public.extra_mile_cards (
   creator_job_title text,
   creator_company text,
   creator_industry text,
-  marketing_consent boolean not null default false
+  marketing_consent boolean not null default false,
+  card_style text default 'classic'
 );
+
+-- Added later: safe to run on an existing table.
+alter table public.extra_mile_cards add column if not exists card_style text default 'classic';
 
 create index if not exists extra_mile_cards_created_at_idx on public.extra_mile_cards (created_at desc);
 

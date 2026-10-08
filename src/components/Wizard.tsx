@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Cropper, { Point } from 'react-easy-crop';
 import { useWizard } from '../context/WizardContext';
 import { CardPreview } from './CardPreview';
+import { ANIMATED_STYLES, CARD_STYLES } from './CardTemplates';
 import { ShareComponent } from './ShareComponent';
 import { generateCardImage } from '../services/cardGenerator';
 import { ProgressBar } from './ProgressBar';
@@ -27,7 +28,8 @@ import {
   ShieldCheck,
   ExternalLink,
   ChevronDown,
-  RotateCcw
+  RotateCcw,
+  Film,
 } from 'lucide-react';
 import {
   validatePhoto,
@@ -908,12 +910,26 @@ const StepFour = () => {
    STEP 5: CREATE (Finished Square Card, Quality Check, Export & Share)
    ========================================================================= */
 const StepFive = ({ onStartNew }: { onStartNew?: () => void }) => {
-  const { state, resetWizard } = useWizard();
+  const { state, resetWizard, updateData } = useWizard();
+  const savedCardId = useRef<string | null>(null);
+  const cardStyle = state.data.cardStyle || 'bold';
+
+  // Remember which style the card was actually downloaded or emailed in
+  const recordStyle = () => {
+    if (!savedCardId.current) return;
+    fetch(`/api/cards/${savedCardId.current}/style`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cardStyle }),
+    }).catch(() => {});
+  };
   const [downloading, setDownloading] = useState(false);
   const [emailing, setEmailing] = useState(false);
   const [emailSuccess, setEmailSuccess] = useState(false);
   const [emailError, setEmailError] = useState('');
   const [showDownloadDone, setShowDownloadDone] = useState(false);
+  const [videoProgress, setVideoProgress] = useState<number | null>(null);
+  const [videoError, setVideoError] = useState('');
   const [isReady, setIsReady] = useState(false);
 
   // Save the completed card to Supabase (via the server) once per card
@@ -936,9 +952,15 @@ const StepFive = ({ onStartNew }: { onStartNew?: () => void }) => {
         creatorCompany: state.data.creatorCompany || '',
         creatorIndustry: state.data.creatorIndustry || '',
         marketingConsent: state.data.marketingConsent || false,
+        cardStyle,
         campaign: 'ThoseWhoWentTheExtraMile',
       }),
-    }).catch((err) => console.warn('Could not save card record:', err));
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((r) => {
+        if (r?.id) savedCardId.current = r.id;
+      })
+      .catch((err) => console.warn('Could not save card record:', err));
 
     const timer = setTimeout(() => setIsReady(true), 400);
     return () => clearTimeout(timer);
@@ -968,11 +990,52 @@ const StepFive = ({ onStartNew }: { onStartNew?: () => void }) => {
       link.href = dataUrl;
       link.download = filename;
       link.click();
+      recordStyle();
       setShowDownloadDone(true);
     } catch (err) {
       console.warn('Download error:', err);
     } finally {
       setDownloading(false);
+    }
+  };
+
+  // Animated video download (MP4): short intro, then the finished card holds still
+  const handleDownloadVideo = async () => {
+    if (videoProgress !== null) return;
+    setVideoError('');
+    setVideoProgress(0);
+    try {
+      const { generateCardVideo } = await import('../services/cardVideo');
+      const d = state.data;
+      const { blob, extension } = await generateCardVideo(
+        {
+          recipientName: d.recipientName,
+          relationship: d.relationship,
+          photoUrl: d.photoUrl,
+          selectedTraits: d.selectedTraits,
+          message: d.message,
+          creatorFirstName: d.creatorFirstName,
+          creatorLastName: d.creatorLastName,
+          creatorJobTitle: d.creatorJobTitle,
+          creatorCompany: d.creatorCompany,
+        },
+        cardStyle,
+        (p) => setVideoProgress(p)
+      );
+      const safeName = (d.recipientName || 'card').toLowerCase().replace(/[^a-z0-9]/g, '-');
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `pluto-thank-you-${safeName}.${extension}`;
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      recordStyle();
+      setShowDownloadDone(true);
+    } catch (err) {
+      console.warn('Video export error:', err);
+      setVideoError("We couldn't create the video on this device. Please download the image instead.");
+    } finally {
+      setVideoProgress(null);
     }
   };
 
@@ -992,6 +1055,7 @@ const StepFive = ({ onStartNew }: { onStartNew?: () => void }) => {
       if (!res.ok || !result.delivered) {
         throw new Error(result.error || 'Email could not be delivered');
       }
+      recordStyle();
       setEmailSuccess(true);
       setTimeout(() => setEmailSuccess(false), 5000);
     } catch (err) {
@@ -1021,6 +1085,36 @@ const StepFive = ({ onStartNew }: { onStartNew?: () => void }) => {
           </p>
         </div>
 
+        {/* Style picker: same details, different look */}
+        <div className="max-w-[540px] mx-auto">
+          <p className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Choose a style</p>
+          <div role="radiogroup" aria-label="Card style" className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {CARD_STYLES.map((s) => {
+              const active = cardStyle === s.id;
+              return (
+                <button
+                  key={s.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={active}
+                  onClick={() => updateData({ cardStyle: s.id })}
+                  className={`flex flex-col items-center gap-1.5 rounded-2xl border-2 px-2 py-3 transition-all cursor-pointer ${
+                    active ? 'border-[#00875A] bg-emerald-50/60 shadow-sm' : 'border-slate-200 bg-white hover:border-slate-300'
+                  }`}
+                >
+                  <span className="flex -space-x-1.5">
+                    {s.swatch.map((c) => (
+                      <span key={c} className="w-5 h-5 rounded-full border-2 border-white ring-1 ring-slate-200" style={{ backgroundColor: c }} />
+                    ))}
+                  </span>
+                  <span className={`text-sm font-bold ${active ? 'text-[#00704A]' : 'text-slate-800'}`}>{s.label}</span>
+                  <span className="text-[11px] leading-tight text-slate-500 hidden sm:block">{s.description}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         {/* Large Square Card Preview (Immutable Source of Truth) */}
         <div className="max-w-[540px] mx-auto p-3 bg-slate-100/80 border border-slate-200 rounded-[44px] shadow-lg">
           <CardPreview size="responsive" />
@@ -1038,6 +1132,19 @@ const StepFive = ({ onStartNew }: { onStartNew?: () => void }) => {
             <Download className="w-4 h-4" />
             <span>{downloading ? 'Preparing Card...' : 'DOWNLOAD CARD'}</span>
           </button>
+
+          {/* Animated video (MP4) for LinkedIn, Instagram, WhatsApp */}
+          {ANIMATED_STYLES.includes(cardStyle) && (
+            <button
+              type="button"
+              onClick={handleDownloadVideo}
+              disabled={videoProgress !== null}
+              className="px-5 py-3.5 bg-[#0B1B3D] hover:bg-[#13285A] text-white font-bold rounded-full text-sm flex items-center space-x-2 shadow-md transition-all cursor-pointer disabled:opacity-80"
+            >
+              <Film className="w-4 h-4" />
+              <span>{videoProgress !== null ? `Creating video… ${Math.round(videoProgress * 100)}%` : 'ANIMATED VIDEO'}</span>
+            </button>
+          )}
 
           {/* High-res 1600x1600 download */}
           <button
@@ -1061,6 +1168,12 @@ const StepFive = ({ onStartNew }: { onStartNew?: () => void }) => {
             <span>{emailing ? 'Sending...' : 'SEND TO MY INBOX'}</span>
           </button>
         </div>
+
+        {videoError && (
+          <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-2xl text-xs font-bold inline-block animate-fadeIn">
+            {videoError}
+          </div>
+        )}
 
         {emailError && (
           <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-2xl text-xs font-bold inline-block animate-fadeIn">

@@ -1,3 +1,4 @@
+import { CAMPAIGN_URL } from '../constants/brand';
 import React, { useState } from 'react';
 import { generateCardImage } from '../services/cardGenerator';
 import {
@@ -37,7 +38,7 @@ export const ShareComponent = ({
   const targetEmail = creatorEmail || state.data.creatorEmail;
 
   // Fixed Campaign URL as mandated by Section 24
-  const campaignUrl = 'http://pluto.verifyme.ng/ExtraMile';
+  const campaignUrl = CAMPAIGN_URL;
 
   // Section 23 suggested share copy
   const [customShareCopy, setCustomShareCopy] = useState(

@@ -43,6 +43,9 @@ async function startServer() {
     typeof value === 'string' ? value.trim().slice(0, max) : '';
 
   // Save one completed card (no photo or image is stored).
+  const CARD_STYLE_IDS = ['classic', 'warm', 'bold', 'oxblood', 'purple'];
+  const cleanStyle = (v: unknown) => (CARD_STYLE_IDS.includes(String(v)) ? String(v) : 'bold');
+
   app.post('/api/cards', async (req, res) => {
     if (!supabaseAdmin) {
       console.log('[Supabase] Database not configured: card not saved');
@@ -64,13 +67,32 @@ async function startServer() {
       creator_industry: clean(b.creatorIndustry, 80),
       marketing_consent: b.marketingConsent === true,
       campaign: clean(b.campaign, 60) || 'ThoseWhoWentTheExtraMile',
+      card_style: cleanStyle(b.cardStyle),
     };
-    const { data, error } = await supabaseAdmin.from(CARDS_TABLE).insert(row).select('id').single();
-    if (error) {
-      console.log('[Supabase] Insert failed:', error.message);
+    let { data, error } = await supabaseAdmin.from(CARDS_TABLE).insert(row).select('id').single();
+    if (error && /card_style/.test(error.message)) {
+      // Older table without the card_style column: save the card anyway.
+      const { card_style, ...rest } = row;
+      ({ data, error } = await supabaseAdmin.from(CARDS_TABLE).insert(rest).select('id').single());
+    }
+    if (error || !data) {
+      console.log('[Supabase] Insert failed:', error?.message);
       return res.status(500).json({ error: 'Could not save card' });
     }
     return res.json({ id: data.id });
+  });
+
+  // Record the style a card was downloaded or emailed in (the user can switch styles after the card is saved).
+  app.post('/api/cards/:id/style', async (req, res) => {
+    if (!supabaseAdmin) return res.status(204).end();
+    const id = clean(req.params.id, 60);
+    if (!/^[0-9a-f-]{36}$/i.test(id)) return res.status(400).json({ error: 'Invalid card' });
+    const { error } = await supabaseAdmin
+      .from(CARDS_TABLE)
+      .update({ card_style: cleanStyle(req.body?.cardStyle) })
+      .eq('id', id);
+    if (error) console.log('[Supabase] Style update failed:', error.message);
+    return res.status(204).end();
   });
 
   // Record that a wizard session reached a step (1-5). Used for the real funnel.
@@ -119,6 +141,7 @@ async function startServer() {
       creatorIndustry: r.creator_industry,
       marketingConsent: r.marketing_consent,
       campaign: r.campaign,
+      cardStyle: r.card_style || 'classic',
       createdAt: r.created_at,
     }));
     // Real funnel: how many wizard sessions reached each step.

@@ -1,3 +1,4 @@
+import type { CardStyle } from '../components/CardTemplates';
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
 export const INITIAL_CARD_STATE = {
@@ -16,6 +17,7 @@ export const INITIAL_CARD_STATE = {
   creatorIndustry: '',
   creatorPhone: '',
   marketingConsent: false,
+  cardStyle: 'bold' as CardStyle,
 };
 
 export type WizardState = {
