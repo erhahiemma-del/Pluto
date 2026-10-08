@@ -25,9 +25,11 @@ async function startServer() {
   const resendApiKey = process.env.RESEND_API_KEY;
 
   // Supabase (server-side only). The service role key never reaches the browser.
+  // Uses the URL from AI Studio's Supabase integration (VITE_SUPABASE_URL) if SUPABASE_URL isn't set.
+  const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
   const supabaseAdmin =
-    process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY
-      ? createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
+    supabaseUrl && process.env.SUPABASE_SERVICE_ROLE_KEY
+      ? createClient(supabaseUrl, process.env.SUPABASE_SERVICE_ROLE_KEY, {
           auth: { persistSession: false },
         })
       : null;
@@ -263,6 +265,11 @@ Return a JSON object in this exact format:
     app.use(vite.middlewares);
   } else {
     app.use(express.static('dist'));
+    // Single-page app: send index.html for any other page path (e.g. /ExtraMile)
+    app.get('*', (req, res, next) => {
+      if (req.path.startsWith('/api/')) return next();
+      res.sendFile('index.html', { root: 'dist' });
+    });
   }
 
   const port = process.env.PORT || 3000;
