@@ -1,3 +1,4 @@
+import { PhotoFill } from './PhotoFill';
 import React from 'react';
 import { PLUTO_LOGO_URL, CAMPAIGN_URL_TEXT } from '../constants/brand';
 
@@ -5,6 +6,10 @@ export interface CardData {
   recipientName?: string;
   relationship?: string;
   photoUrl?: string;
+  photoZoom?: number;
+  photoFocusX?: number;
+  photoFocusY?: number;
+  photoAspect?: number;
   selectedTraits?: string[];
   message?: string;
   creatorFirstName?: string;
@@ -296,7 +301,7 @@ export const CardSvgArtboard: React.FC<CardSvgArtboardProps> = ({
       {/* B. PORTRAIT */}
       <circle cx="230" cy="325" r="180" fill="#D8F1FD" filter="url(#portraitShadow)" />
       <circle cx="230" cy="325" r="168" fill="#FFFFFF" stroke="url(#portraitBorderGrad)" strokeWidth="4" />
-      <image href={photoUrl} x="65" y="160" width="330" height="330" preserveAspectRatio="xMidYMid slice" clipPath="url(#portraitCircleClip)" />
+      <PhotoFill href={photoUrl} x={65} y={160} width={330} height={330} framing={data} clipPath="url(#portraitCircleClip)" />
 
       {/* DECORATIVE ACCENT */}
       <g stroke="#00C48C" strokeWidth="5.5" strokeLinecap="round">

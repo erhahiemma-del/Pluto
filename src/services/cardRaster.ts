@@ -11,6 +11,10 @@ type WizardData = {
   recipientName?: string;
   relationship?: string;
   photoUrl?: string;
+  photoZoom?: number;
+  photoFocusX?: number;
+  photoFocusY?: number;
+  photoAspect?: number;
   selectedTraits?: string[];
   message?: string;
   creatorFirstName?: string;
@@ -23,6 +27,10 @@ export const cardDataFrom = (d: WizardData): CardData => ({
   recipientName: d.recipientName,
   relationship: d.relationship,
   photoUrl: d.photoUrl,
+  photoZoom: d.photoZoom,
+  photoFocusX: d.photoFocusX,
+  photoFocusY: d.photoFocusY,
+  photoAspect: d.photoAspect,
   selectedTraits: d.selectedTraits,
   message: d.message,
   creatorFirstName: d.creatorFirstName,

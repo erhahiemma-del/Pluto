@@ -28,6 +28,8 @@ import {
   ExternalLink,
   ChevronDown,
   RotateCcw,
+  ZoomIn,
+  ZoomOut,
   Film,
 } from 'lucide-react';
 import {
@@ -158,9 +160,28 @@ const StepTwo = () => {
   const { updateData, nextStep, prevStep, state } = useWizard();
   const [imageSrc, setImageSrc] = useState(state.data.photoUrl || '');
   const [crop, setCrop] = useState<Point>({ x: 0, y: 0 });
-  const [zoom, setZoom] = useState(1);
-  const [isCropping, setIsCropping] = useState(false);
+  const [zoom, setZoom] = useState(state.data.photoZoom || 1);
   const [submitted, setSubmitted] = useState(false);
+  // Bumped on each new photo so the framing editor starts fresh
+  const [photoVersion, setPhotoVersion] = useState(0);
+
+  // Save the framing (focus point + zoom) whenever the person finishes moving or zooming
+  const onCropComplete = (area: { x: number; y: number; width: number; height: number }) => {
+    updateData({
+      photoFocusX: Math.min(1, Math.max(0, (area.x + area.width / 2) / 100)),
+      photoFocusY: Math.min(1, Math.max(0, (area.y + area.height / 2) / 100)),
+      photoCrop: area,
+    });
+  };
+  // Keep the zoom in sync (the card preview below updates live)
+  useEffect(() => {
+    if (state.data.photoZoom !== zoom) updateData({ photoZoom: zoom });
+  }, [zoom]);
+  const resetFraming = () => {
+    setCrop({ x: 0, y: 0 });
+    setZoom(1);
+    setPhotoVersion((v) => v + 1);
+  };
 
   const photoValidation = validatePhoto(imageSrc);
 
@@ -175,7 +196,8 @@ const StepTwo = () => {
       reader.addEventListener('load', () => {
         const result = reader.result as string;
         setImageSrc(result);
-        updateData({ photoUrl: result });
+        resetFraming();
+        updateData({ photoUrl: result, photoZoom: 1, photoFocusX: 0.5, photoFocusY: 0.5, photoAspect: 0, photoCrop: null });
       });
       reader.readAsDataURL(file);
     }
@@ -189,7 +211,8 @@ const StepTwo = () => {
   const handleUseDemo = () => {
     const demo = '/african_executive_portrait.jpg';
     setImageSrc(demo);
-    updateData({ photoUrl: demo });
+    resetFraming();
+    updateData({ photoUrl: demo, photoZoom: 1, photoFocusX: 0.5, photoFocusY: 0.5, photoAspect: 0, photoCrop: null });
   };
 
   const handleContinue = () => {
@@ -257,50 +280,110 @@ const StepTwo = () => {
             </div>
           </div>
         ) : (
-          <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-xs flex flex-col sm:flex-row items-center gap-6">
-            {/* Circular Portrait Preview with Reference Double-Ring Treatment */}
-            <div className="w-40 h-40 sm:w-48 sm:h-48 rounded-full p-2 bg-[#DDF2FD]/80 shadow-md shrink-0 relative">
-              <div className="w-full h-full rounded-full p-[3px] bg-gradient-to-tr from-[#00A389] via-[#00B4D8] to-[#38B6FF]">
-                <img
-                  src={imageSrc}
-                  alt="Recipient Portrait"
-                  className="w-full h-full rounded-full object-cover shadow-inner"
+          <div className="bg-white border border-slate-200 rounded-3xl p-5 sm:p-7 shadow-xs space-y-6">
+            <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
+              {/* Framing editor: drag to move, slider or pinch to zoom */}
+              <div className="relative w-56 sm:w-60 aspect-[3/4] rounded-2xl overflow-hidden bg-slate-900 shrink-0 shadow-md touch-none">
+                <Cropper
+                  key={photoVersion}
+                  image={imageSrc}
+                  crop={crop}
+                  zoom={zoom}
+                  minZoom={1}
+                  maxZoom={3}
+                  aspect={3 / 4}
+                  objectFit="cover"
+                  showGrid={false}
+                  initialCroppedAreaPercentages={state.data.photoCrop || undefined}
+                  onCropChange={setCrop}
+                  onZoomChange={setZoom}
+                  onCropComplete={onCropComplete}
+                  onMediaLoaded={(m) => {
+                    if (m.naturalWidth && m.naturalHeight) updateData({ photoAspect: m.naturalWidth / m.naturalHeight });
+                  }}
                 />
+              </div>
+
+              <div className="flex-1 space-y-4 w-full text-center sm:text-left">
+                <div>
+                  <h3 className="font-extrabold text-[#0B1B3D] text-lg">Frame their photo</h3>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Drag the photo to move it. Use the slider (or pinch on your phone) to bring the face closer or further away.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    aria-label="Zoom out"
+                    onClick={() => setZoom((z) => Math.max(1, +(z - 0.1).toFixed(2)))}
+                    className="w-9 h-9 rounded-full border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-50 cursor-pointer"
+                  >
+                    <ZoomOut className="w-4 h-4" />
+                  </button>
+                  <input
+                    type="range"
+                    min={1}
+                    max={3}
+                    step={0.01}
+                    value={zoom}
+                    onChange={(e) => setZoom(Number(e.target.value))}
+                    aria-label="Zoom"
+                    className="flex-1 accent-[#00875A] cursor-pointer"
+                  />
+                  <button
+                    type="button"
+                    aria-label="Zoom in"
+                    onClick={() => setZoom((z) => Math.min(3, +(z + 0.1).toFixed(2)))}
+                    className="w-9 h-9 rounded-full border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-50 cursor-pointer"
+                  >
+                    <ZoomIn className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <div className="flex flex-wrap gap-2.5 justify-center sm:justify-start">
+                  <input
+                    type="file"
+                    id="replace-upload"
+                    accept="image/jpeg,image/png,image/webp,image/jpg"
+                    onChange={onFileChange}
+                    className="hidden"
+                  />
+                  <label
+                    htmlFor="replace-upload"
+                    className="px-4 py-2 border border-slate-200 rounded-full text-xs font-bold text-slate-700 hover:bg-slate-50 cursor-pointer flex items-center space-x-1.5 transition-colors"
+                  >
+                    <Upload className="w-3.5 h-3.5" />
+                    <span>Replace Photo</span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      resetFraming();
+                      updateData({ photoZoom: 1, photoFocusX: 0.5, photoFocusY: 0.5, photoCrop: null });
+                    }}
+                    className="px-4 py-2 border border-slate-200 rounded-full text-xs font-bold text-slate-700 hover:bg-slate-50 flex items-center space-x-1.5 transition-colors cursor-pointer"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>Reset</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleRemove}
+                    className="px-4 py-2 border border-rose-200 text-rose-600 rounded-full text-xs font-bold hover:bg-rose-50 flex items-center space-x-1.5 transition-colors cursor-pointer"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Remove</span>
+                  </button>
+                </div>
               </div>
             </div>
 
-            {/* Actions */}
-            <div className="flex-1 space-y-3 w-full text-center sm:text-left">
-              <h3 className="font-extrabold text-[#0B1B3D] text-lg">
-                Portrait Ready
-              </h3>
-              <p className="text-xs text-slate-500">
-                The photo will appear in the signature circular frame on the square card.
-              </p>
-
-              <div className="flex flex-wrap gap-2.5 pt-2 justify-center sm:justify-start">
-                <input
-                  type="file"
-                  id="replace-upload"
-                  accept="image/jpeg,image/png,image/webp,image/jpg"
-                  onChange={onFileChange}
-                  className="hidden"
-                />
-                <label
-                  htmlFor="replace-upload"
-                  className="px-4 py-2 border border-slate-200 rounded-full text-xs font-bold text-slate-700 hover:bg-slate-50 cursor-pointer flex items-center space-x-1.5 transition-colors"
-                >
-                  <Upload className="w-3.5 h-3.5" />
-                  <span>Replace Photo</span>
-                </label>
-                <button
-                  type="button"
-                  onClick={handleRemove}
-                  className="px-4 py-2 border border-rose-200 text-rose-600 rounded-full text-xs font-bold hover:bg-rose-50 flex items-center space-x-1.5 transition-colors cursor-pointer"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  <span>Remove</span>
-                </button>
+            {/* Live card preview */}
+            <div className="pt-2 border-t border-slate-100">
+              <p className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2 text-center">How it looks on the card</p>
+              <div className="max-w-[300px] mx-auto">
+                <CardPreview size="responsive" />
               </div>
             </div>
           </div>
