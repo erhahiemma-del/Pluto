@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Linkedin, Share2, Copy, Check, MessageCircle, Twitter, Instagram, Info } from 'lucide-react';
 import { CAMPAIGN_URL } from '../constants/brand';
-import { generateCardImage } from '../services/cardGenerator';
 import { useWizard } from '../context/WizardContext';
 
 interface ShareComponentProps {
@@ -35,10 +34,6 @@ const composeUrl = (platform: Platform, text: string) => {
   }
 };
 
-const dataUrlToFile = async (dataUrl: string, filename: string) => {
-  const blob = await (await fetch(dataUrl)).blob();
-  return new File([blob], filename, { type: 'image/png' });
-};
 
 export const ShareComponent = ({ cardElementId = 'card-preview-export', recipientName, onShared }: ShareComponentProps) => {
   const { state } = useWizard();
@@ -55,14 +50,18 @@ export const ShareComponent = ({ cardElementId = 'card-preview-export', recipien
   // Prepare the card image in the background, so sharing can open instantly on tap
   // (phones only allow the share sheet straight after a tap).
   const fileRef = useRef<File | null>(null);
+  const cardStyle = state.data.cardStyle || 'bold';
+  const makeFile = async () => {
+    const { generateCardPng, cardDataFrom } = await import('../services/cardRaster');
+    return generateCardPng(cardDataFrom(state.data), cardStyle, { fileName });
+  };
   const cardKey = JSON.stringify([state.data.cardStyle, name, state.data.photoUrl?.length, state.data.message, state.data.selectedTraits]);
   useEffect(() => {
     fileRef.current = null;
     let cancelled = false;
     const timer = setTimeout(async () => {
       try {
-        const dataUrl = await generateCardImage(cardElementId);
-        const file = await dataUrlToFile(dataUrl, fileName);
+        const file = await makeFile();
         if (!cancelled) fileRef.current = file;
       } catch {
         // generated on demand instead
@@ -74,7 +73,7 @@ export const ShareComponent = ({ cardElementId = 'card-preview-export', recipien
     };
   }, [cardKey]);
 
-  const getFile = async () => fileRef.current || dataUrlToFile(await generateCardImage(cardElementId), fileName);
+  const getFile = async () => fileRef.current || makeFile();
 
   const canShareFiles = (file: File) =>
     typeof navigator !== 'undefined' && typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] });
