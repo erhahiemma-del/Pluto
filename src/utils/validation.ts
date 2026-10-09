@@ -90,12 +90,15 @@ export const validatePhoto = (photoUrl?: string): ValidationResult => {
   return { isValid: true };
 };
 
+/** Most traits a card can show. */
+export const MAX_TRAITS = 4;
+
 export const validateTraits = (traits: string[]): ValidationResult => {
   if (!traits || traits.length < 2) {
     return { isValid: false, error: 'Please select at least 2 appreciation attributes.' };
   }
-  if (traits.length > 5) {
-    return { isValid: false, error: 'You can select up to 5 appreciation attributes.' };
+  if (traits.length > MAX_TRAITS) {
+    return { isValid: false, error: `You can select up to ${MAX_TRAITS} appreciation attributes.` };
   }
   return { isValid: true };
 };

@@ -33,6 +33,7 @@ import {
 } from 'lucide-react';
 import {
   validatePhoto,
+  MAX_TRAITS,
   validateTraits,
   validateMessage,
   validateCorporateEmail,
@@ -369,7 +370,7 @@ const StepThree = () => {
     if (isSelected) {
       updateData({ selectedTraits: selectedTraits.filter((t) => t !== trait) });
     } else {
-      if (selectedTraits.length < 5) {
+      if (selectedTraits.length < MAX_TRAITS) {
         updateData({ selectedTraits: [...selectedTraits, trait] });
       }
     }
@@ -429,16 +430,16 @@ const StepThree = () => {
               </h2>
               <div className="flex items-center justify-between mt-1">
                 <p className="text-slate-500 text-sm">
-                  Pick 2–5 things that made a difference.
+                  Pick 2–4 things that made a difference.
                 </p>
                 <span
                   className={`text-xs font-bold px-2.5 py-1 rounded-full ${
-                    selectedTraits.length >= 2 && selectedTraits.length <= 5
+                    selectedTraits.length >= 2 && selectedTraits.length <= MAX_TRAITS
                       ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
                       : 'bg-slate-100 text-slate-500'
                   }`}
                 >
-                  {selectedTraits.length} / 5 selected
+                  {selectedTraits.length} / {MAX_TRAITS} selected
                 </span>
               </div>
             </div>
@@ -461,7 +462,7 @@ const StepThree = () => {
                     className={`px-3.5 py-2 rounded-full text-xs font-semibold transition-all border flex items-center space-x-1.5 cursor-pointer ${
                       isSelected
                         ? 'bg-[#00875A] text-white border-[#00875A] shadow-xs'
-                        : selectedTraits.length >= 5
+                        : selectedTraits.length >= MAX_TRAITS
                         ? 'bg-slate-50 text-slate-400 border-slate-200 opacity-60 cursor-not-allowed'
                         : 'bg-white text-slate-700 border-slate-200 hover:border-[#00875A]/60 hover:bg-[#F0FDF9]'
                     }`}
@@ -956,7 +957,7 @@ const StepFive = ({ onStartNew }: { onStartNew?: () => void }) => {
     { label: 'Recipient photo present', pass: Boolean(state.data.photoUrl) },
     { label: 'Recipient name visible', pass: Boolean(state.data.recipientName && state.data.recipientName.trim().length >= 2) },
     { label: 'Relationship visible', pass: Boolean(state.data.relationship) },
-    { label: '2–5 appreciation attributes', pass: (state.data.selectedTraits?.length || 0) >= 2 && (state.data.selectedTraits?.length || 0) <= 5 },
+    { label: '2–4 appreciation attributes', pass: (state.data.selectedTraits?.length || 0) >= 2 && (state.data.selectedTraits?.length || 0) <= MAX_TRAITS },
     { label: 'Appreciation message present', pass: Boolean(state.data.message && state.data.message.trim().length >= 10) },
     { label: 'Sender details present', pass: Boolean(state.data.creatorFirstName && state.data.creatorJobTitle) },
     { label: '1:1 Square proportions locked', pass: true },
