@@ -27,10 +27,10 @@ interface StepOneProps {
 export const StepOne: React.FC<StepOneProps> = ({ onBackToHome }) => {
   const { state, updateData, nextStep, resetWizard } = useWizard();
 
-  // Local state initialized from persistent context (normalized to max 13 chars)
+  // Local state initialized from persistent context (normalized to max 16 chars)
   const initialName = state.data.recipientName || '';
   const [recipientName, setRecipientName] = useState(
-    initialName.length > 13 ? initialName.slice(0, 13) : initialName
+    initialName.length > 16 ? initialName.slice(0, 16) : initialName
   );
   const [selectedRel, setSelectedRel] = useState(state.data.relationship || '');
   const STANDARD_RELATIONSHIPS = [
@@ -94,15 +94,15 @@ export const StepOne: React.FC<StepOneProps> = ({ onBackToHome }) => {
     });
   }, [recipientName, selectedRel, isOther, customRel]);
 
-  // Handle name input with max 13 characters & whitespace normalization
+  // Handle name input with max 16 characters & whitespace normalization
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let val = e.target.value.replace(/\s+/g, ' ');
-    if (val.length > 13) {
-      val = val.slice(0, 13);
+    if (val.length > 16) {
+      val = val.slice(0, 16);
     }
     setRecipientName(val);
     const trimmed = val.trim();
-    if (nameError && trimmed.length >= 2 && trimmed.length <= 13) {
+    if (nameError && trimmed.length >= 2 && trimmed.length <= 16) {
       setNameError(null);
     }
   };
@@ -167,8 +167,8 @@ export const StepOne: React.FC<StepOneProps> = ({ onBackToHome }) => {
       setNameError('Please enter at least 2 characters.');
       valid = false;
       nameInputRef.current?.focus();
-    } else if (trimmedName.length > 13) {
-      setNameError('Please keep the name to 13 characters or fewer.');
+    } else if (trimmedName.length > 16) {
+      setNameError('Please keep the name to 16 characters or fewer.');
       valid = false;
       nameInputRef.current?.focus();
     } else {
@@ -278,7 +278,7 @@ export const StepOne: React.FC<StepOneProps> = ({ onBackToHome }) => {
           </div>
 
           <p className="text-lg sm:text-xl text-[#64748B] font-normal">
-            Let’s start with their name (maximum 13 characters).
+            Let’s start with their name (maximum 16 characters).
           </p>
         </div>
 
@@ -316,7 +316,7 @@ export const StepOne: React.FC<StepOneProps> = ({ onBackToHome }) => {
                 onFocus={() => setIsInputFocused(true)}
                 onBlur={() => setIsInputFocused(false)}
                 placeholder="e.g. Oyin Emmanuel"
-                maxLength={13}
+                maxLength={16}
                 aria-required="true"
                 aria-invalid={Boolean(nameError)}
                 aria-describedby={nameError ? 'recipient-name-error' : undefined}
@@ -335,8 +335,8 @@ export const StepOne: React.FC<StepOneProps> = ({ onBackToHome }) => {
                   </div>
                 )}
               </div>
-              <div className={`font-bold ${recipientName.length > 13 ? 'text-rose-600' : 'text-slate-400'}`}>
-                {recipientName.length} / 13
+              <div className={`font-bold ${recipientName.length > 16 ? 'text-rose-600' : 'text-slate-400'}`}>
+                {recipientName.length} / 16
               </div>
             </div>
           </div>
