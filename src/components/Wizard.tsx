@@ -4,7 +4,6 @@ import { useWizard } from '../context/WizardContext';
 import { CardPreview } from './CardPreview';
 import { ANIMATED_STYLES, CARD_STYLES } from './CardTemplates';
 import { ShareComponent } from './ShareComponent';
-import { generateCardImage } from '../services/cardGenerator';
 import { ProgressBar } from './ProgressBar';
 import { PlutoLogo } from './PlutoLogo';
 import { StepOne } from './StepOne';
@@ -912,7 +911,11 @@ const StepFive = ({ onStartNew }: { onStartNew?: () => void }) => {
       body: JSON.stringify({ cardStyle }),
     }).catch(() => {});
   };
-  const [downloading, setDownloading] = useState(false);
+  const [imageProgress, setImageProgress] = useState<{ kind: 'standard' | 'hires'; p: number } | null>(null);
+  const [downloadError, setDownloadError] = useState('');
+  // Ready-to-save file on phones: saving must happen from a fresh tap, so we show a Save button
+  const [readyFile, setReadyFile] = useState<{ file: File; kind: 'image' | 'video'; url: string } | null>(null);
+  const [saving, setSaving] = useState(false);
   const [showDownloadDone, setShowDownloadDone] = useState(false);
   const [videoProgress, setVideoProgress] = useState<number | null>(null);
   const [videoError, setVideoError] = useState('');
@@ -965,23 +968,61 @@ const StepFive = ({ onStartNew }: { onStartNew?: () => void }) => {
 
   const allPassed = qualityChecks.every((c) => c.pass);
 
+  // Load the image tools in the background so downloads start quickly
+  useEffect(() => {
+    import('../services/cardRaster').catch(() => {});
+  }, []);
+
+  const safeName = (state.data.recipientName || 'card').toLowerCase().replace(/[^a-z0-9]/g, '-');
+
+  /** Hand a finished file to the person: phones get a Save button (share sheet), computers download. */
+  const deliverFile = async (file: File, kind: 'image' | 'video') => {
+    const { isMobileDevice, downloadFile } = await import('../services/cardRaster');
+    if (isMobileDevice()) {
+      setReadyFile({ file, kind, url: URL.createObjectURL(file) });
+      return;
+    }
+    downloadFile(file);
+    recordStyle();
+    setShowDownloadDone(true);
+  };
+
+  const handleSaveReady = async () => {
+    if (!readyFile) return;
+    setSaving(true);
+    try {
+      const { saveFileToDevice } = await import('../services/cardRaster');
+      const saved = await saveFileToDevice(readyFile.file);
+      if (saved) {
+        URL.revokeObjectURL(readyFile.url);
+        setReadyFile(null);
+        recordStyle();
+        setShowDownloadDone(true);
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
+
   // Download Handler (PNG at 1080x1080 or high-res 1600x1600)
   const handleDownload = async (highRes = false) => {
-    setDownloading(true);
+    if (imageProgress) return;
+    const kind = highRes ? 'hires' : 'standard';
+    setDownloadError('');
+    setImageProgress({ kind, p: 0 });
     try {
-      const dataUrl = await generateCardImage('card-preview-export', { highRes });
-      const safeName = (state.data.recipientName || 'card').toLowerCase().replace(/[^a-z0-9]/g, '-');
-      const filename = `pluto-thank-you-${safeName}.png`;
-      const link = document.createElement('a');
-      link.href = dataUrl;
-      link.download = filename;
-      link.click();
-      recordStyle();
-      setShowDownloadDone(true);
+      const { generateCardPng, cardDataFrom } = await import('../services/cardRaster');
+      const file = await generateCardPng(cardDataFrom(state.data), cardStyle, {
+        size: highRes ? 1600 : 1080,
+        fileName: `pluto-thank-you-${safeName}${highRes ? '-hd' : ''}.png`,
+        onProgress: (p) => setImageProgress({ kind, p }),
+      });
+      await deliverFile(file, 'image');
     } catch (err) {
       console.warn('Download error:', err);
+      setDownloadError("We couldn't create your card on this device. Please try again, or try another browser.");
     } finally {
-      setDownloading(false);
+      setImageProgress(null);
     }
   };
 
@@ -1008,15 +1049,8 @@ const StepFive = ({ onStartNew }: { onStartNew?: () => void }) => {
         cardStyle,
         (p) => setVideoProgress(p)
       );
-      const safeName = (d.recipientName || 'card').toLowerCase().replace(/[^a-z0-9]/g, '-');
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `pluto-thank-you-${safeName}.${extension}`;
-      link.click();
-      setTimeout(() => URL.revokeObjectURL(url), 60_000);
-      recordStyle();
-      setShowDownloadDone(true);
+      const file = new File([blob], `pluto-thank-you-${safeName}.${extension}`, { type: blob.type || 'video/mp4' });
+      await deliverFile(file, 'video');
     } catch (err) {
       console.warn('Video export error:', err);
       setVideoError("We couldn't create the video on this device. Please download the image instead.");
@@ -1086,11 +1120,11 @@ const StepFive = ({ onStartNew }: { onStartNew?: () => void }) => {
           <button
             type="button"
             onClick={() => handleDownload(false)}
-            disabled={downloading}
+            disabled={imageProgress !== null}
             className="px-6 py-3.5 bg-[#00875A] hover:bg-[#00704A] text-white font-bold rounded-full text-sm flex items-center space-x-2 shadow-md transition-all cursor-pointer"
           >
             <Download className="w-4 h-4" />
-            <span>{downloading ? 'Preparing Card...' : 'DOWNLOAD CARD'}</span>
+            <span>{imageProgress?.kind === 'standard' ? `Preparing card… ${Math.round(imageProgress.p * 100)}%` : 'DOWNLOAD CARD'}</span>
           </button>
 
           {/* Animated video (MP4) for LinkedIn, Instagram, WhatsApp */}
@@ -1110,14 +1144,64 @@ const StepFive = ({ onStartNew }: { onStartNew?: () => void }) => {
           <button
             type="button"
             onClick={() => handleDownload(true)}
-            disabled={downloading}
+            disabled={imageProgress !== null}
             className="px-5 py-3.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-800 font-bold rounded-full text-sm flex items-center space-x-2 shadow-xs transition-all cursor-pointer"
           >
             <Download className="w-4 h-4 text-[#00875A]" />
-            <span>High-Res (1600 × 1600)</span>
+            <span>{imageProgress?.kind === 'hires' ? `Preparing HD… ${Math.round(imageProgress.p * 100)}%` : 'High-Res (1600 × 1600)'}</span>
           </button>
 
         </div>
+
+        {downloadError && (
+          <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-2xl text-xs font-bold inline-block animate-fadeIn">
+            {downloadError}
+          </div>
+        )}
+
+        {/* Phones: the file is ready, tap to save it (opens the share sheet) */}
+        {readyFile && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 px-4 animate-fadeIn"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="save-ready-title"
+          >
+            <div className="w-full max-w-sm bg-white rounded-3xl shadow-xl p-5 text-center space-y-4">
+              <h3 id="save-ready-title" className="text-lg font-extrabold text-[#0B1B3D]">
+                Your {readyFile.kind === 'video' ? 'video' : 'card'} is ready
+              </h3>
+              {readyFile.kind === 'video' ? (
+                <video src={readyFile.url} className="w-full rounded-xl" autoPlay muted loop playsInline />
+              ) : (
+                <img src={readyFile.url} alt="Your thank-you card" className="w-full rounded-xl" />
+              )}
+              <button
+                type="button"
+                onClick={handleSaveReady}
+                disabled={saving}
+                className="w-full px-5 py-3.5 bg-[#00875A] hover:bg-[#00704A] text-white font-bold rounded-full text-sm flex items-center justify-center gap-2"
+              >
+                <Download className="w-4 h-4" />
+                <span>{saving ? 'Opening…' : readyFile.kind === 'video' ? 'Save video to phone' : 'Save card to phone'}</span>
+              </button>
+              <p className="text-[11px] text-slate-500">
+                In the menu that opens, tap <strong>{readyFile.kind === 'video' ? 'Save Video' : 'Save Image'}</strong> to add it to your photos.
+                {readyFile.kind === 'image' && ' You can also press and hold the card above to save it.'}
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  URL.revokeObjectURL(readyFile.url);
+                  setReadyFile(null);
+                }}
+                className="text-xs text-slate-500 hover:text-slate-700"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
 
         {videoError && (
           <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-2xl text-xs font-bold inline-block animate-fadeIn">

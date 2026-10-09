@@ -1,10 +1,8 @@
 // Builds a short animated MP4 of the card: ~1.5s intro, then the finished card holds still.
-import React from 'react';
-import { renderToStaticMarkup } from 'react-dom/server';
 import { Muxer, ArrayBufferTarget } from 'mp4-muxer';
-import { CardArtboard, CARD_ANIMATION_SECONDS } from '../components/CardTemplates';
+import { CARD_ANIMATION_SECONDS } from '../components/CardTemplates';
 import { CardData } from '../components/CardSvgArtboard';
-import { blobToDataUrl, getCardFontCSS } from './cardFonts';
+import { createCardRenderer } from './cardRaster';
 
 const SIZE = 1080;
 const FPS = 30;
@@ -13,51 +11,8 @@ const START_AT = 0.25; // first frame already shows the photo, so the thumbnail 
 
 export type CardVideo = { blob: Blob; extension: 'mp4' | 'webm' };
 
-const toDataUrl = async (src: string) => {
-  if (!src || src.startsWith('data:')) return src;
-  const res = await fetch(src);
-  return blobToDataUrl(await res.blob());
-};
-
-const loadImage = (url: string) =>
-  new Promise<HTMLImageElement>((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error('Could not draw card frame'));
-    img.src = url;
-  });
-
 /** Renders card frames at a given animation time onto a canvas. */
-const makeFrameRenderer = async (data: CardData, cardStyle: string) => {
-  const fontCSS = await getCardFontCSS();
-  const frameData = { ...data, photoUrl: await toDataUrl(data.photoUrl || '/african_executive_portrait.jpg') };
-  const canvas = document.createElement('canvas');
-  canvas.width = SIZE;
-  canvas.height = SIZE;
-  const ctx = canvas.getContext('2d')!;
-
-  const draw = async (t: number | undefined) => {
-    let svg = renderToStaticMarkup(
-      React.createElement(CardArtboard, { cardStyle, data: frameData, animT: t, style: { borderRadius: 0 } })
-    );
-    svg = svg
-      .replace(/@import url\([^)]*\);?/g, '')
-      .replace(/<svg([^>]*)>/, (_m, attrs) => `<svg${attrs}><style>${fontCSS}</style>`);
-    const url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
-    try {
-      const img = await loadImage(url);
-      ctx.fillStyle = '#FFFFFF';
-      ctx.fillRect(0, 0, SIZE, SIZE);
-      ctx.drawImage(img, 0, 0, SIZE, SIZE);
-    } finally {
-      URL.revokeObjectURL(url);
-    }
-  };
-
-  // Warm-up draw so embedded fonts are decoded before the first real frame
-  await draw(undefined);
-  return { canvas, draw };
-};
+const makeFrameRenderer = (data: CardData, cardStyle: string) => createCardRenderer(data, cardStyle, SIZE);
 
 const pickAvcCodec = async (): Promise<string | null> => {
   if (typeof window === 'undefined' || !('VideoEncoder' in window)) return null;
