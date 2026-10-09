@@ -43,8 +43,8 @@ export const validateRecipientName = (name: string): ValidationResult => {
   if (trimmed.length < 2) {
     return { isValid: false, error: 'Recipient name must be at least 2 characters.' };
   }
-  if (trimmed.length > 13) {
-    return { isValid: false, error: 'Please keep the name to 13 characters or fewer.' };
+  if (trimmed.length > 16) {
+    return { isValid: false, error: 'Please keep the name to 16 characters or fewer.' };
   }
   return { isValid: true };
 };
@@ -58,8 +58,8 @@ export const validateName = (name: string, label = 'Name'): ValidationResult => 
     return { isValid: false, error: `${label} must be at least 2 characters.` };
   }
   const isRecipient = label.toLowerCase().includes('recipient') || label.toLowerCase().includes('first') || label.toLowerCase().includes('last');
-  if (isRecipient && trimmed.length > 13) {
-    return { isValid: false, error: 'Please keep the name to 13 characters or fewer.' };
+  if (isRecipient && trimmed.length > 16) {
+    return { isValid: false, error: 'Please keep the name to 16 characters or fewer.' };
   }
   return { isValid: true };
 };
