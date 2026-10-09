@@ -1,5 +1,6 @@
 import React from 'react';
 import { CAMPAIGN_URL_TEXT } from '../constants/brand';
+import { PhotoFill } from './PhotoFill';
 import { CardData, CardSvgArtboard, CardSvgArtboardProps, wrapText } from './CardSvgArtboard';
 
 export type CardStyle = 'classic' | 'warm' | 'bold' | 'oxblood' | 'purple';
@@ -131,7 +132,7 @@ export const CardSvgWarm: React.FC<CardSvgArtboardProps> = ({ data, id = 'card-s
       {/* Photo in arch frame */}
       <path d="M 54 285 A 186 186 0 0 1 426 285 L 426 576 L 54 576 Z" fill="none" stroke="#C9A227" strokeWidth="3" />
       <path d={arch} fill="#F3E6CC" filter="url(#warmShadow)" />
-      <image href={c.photoUrl} x="70" y="115" width="340" height="445" preserveAspectRatio="xMidYMid slice" clipPath="url(#warmArchClip)" />
+      <PhotoFill href={c.photoUrl} x={70} y={115} width={340} height={445} framing={data} clipPath="url(#warmArchClip)" />
       {/* small gold sparkle */}
       <g stroke="#C9A227" strokeWidth="4" strokeLinecap="round">
         <line x1="440" y1="120" x2="440" y2="146" />
@@ -340,7 +341,7 @@ const CardSvgBoldThemed: React.FC<AnimatedCardProps & { theme: BoldTheme }> = ({
       <rect width="1080" height="1080" fill={t.bg} />
       <g opacity={aPhoto} clipPath={`url(#${p}-photoClip)`}>
         <g transform={`translate(${((1 - aPhoto) * -60).toFixed(2)}, 0)`}>
-          <image href={c.photoUrl} x="0" y="0" width="480" height="1080" preserveAspectRatio="xMidYMid slice" />
+          <PhotoFill href={c.photoUrl} x={0} y={0} width={480} height={1080} framing={data} />
         </g>
         <rect x="0" y="0" width="480" height="1080" fill={`url(#${p}-photoFade)`} />
         <rect x="400" y="0" width="80" height="1080" fill={`url(#${p}-edgeFade)`} />
