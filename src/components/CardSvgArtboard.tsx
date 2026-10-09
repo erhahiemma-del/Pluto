@@ -185,7 +185,7 @@ export const CardSvgArtboard: React.FC<CardSvgArtboardProps> = ({
   // Attributes (strictly 2 to 5)
   const rawTraits =
     data.selectedTraits && data.selectedTraits.length >= 2
-      ? data.selectedTraits.slice(0, 5)
+      ? data.selectedTraits.slice(0, 4)
       : ['Challenged me to grow', 'Opened new opportunities'];
 
   // Message (max 40 words)

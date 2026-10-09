@@ -1,6 +1,6 @@
 import React from 'react';
 import { CAMPAIGN_URL_TEXT } from '../constants/brand';
-import { CardData, CardSvgArtboard, CardSvgArtboardProps, getAttributeConfig, wrapText } from './CardSvgArtboard';
+import { CardData, CardSvgArtboard, CardSvgArtboardProps, wrapText } from './CardSvgArtboard';
 
 export type CardStyle = 'classic' | 'warm' | 'bold' | 'oxblood' | 'purple';
 
@@ -30,14 +30,12 @@ const prepare = (data: CardData) => {
   const photoUrl = data.photoUrl || '/african_executive_portrait.jpg';
   const traits =
     data.selectedTraits && data.selectedTraits.length >= 2
-      ? data.selectedTraits.slice(0, 5)
+      ? data.selectedTraits.slice(0, 4)
       : ['Challenged me to grow', 'Opened new opportunities'];
+  // Show exactly what the person picked (no keyword mapping), without duplicates
   const traitLabels = traits
-    .map((t) => {
-      const c = getAttributeConfig(t);
-      return { label: `${c.line1} ${c.line2}`, color: c.color };
-    })
-    .filter((t, i, all) => all.findIndex((o) => o.label === t.label) === i);
+    .map((t) => ({ label: String(t).trim() }))
+    .filter((t, i, all) => t.label && all.findIndex((o) => o.label === t.label) === i);
   const message =
     (data.message || '').trim() ||
     'You didn’t just give direction. You gave me opportunity, challenged me to grow, and believed in me when I doubted myself.';
@@ -103,7 +101,7 @@ const svgStyle = (style: React.CSSProperties = {}): React.CSSProperties => ({
 export const CardSvgWarm: React.FC<CardSvgArtboardProps> = ({ data, id = 'card-svg-warm', className = '', style = {} }) => {
   const c = prepare(data);
   const nameSize = fitFont(c.recipientName + '.', 560, 76, 40, 0.55);
-  const { pills, rowCount } = flowPills(c.traitLabels.map((t) => t.label), 560, 15, 18, 10, 2);
+  const { pills, rowCount } = flowPills(c.traitLabels.map((t) => t.label), 560, 15, 18, 10, 3);
   const pillsY = 345;
   const msgY = pillsY + rowCount * 50 + 70;
   const { size: msgSize, lineH, lines: msgLines } = messageLayout(c.message, 40);
@@ -306,9 +304,10 @@ const CardSvgBoldThemed: React.FC<AnimatedCardProps & { theme: BoldTheme }> = ({
   const relY = 178 + nameSize;
   const msgY = relY + 135;
   const { size: msgSize, lineH, lines: msgLines } = messageLayout(c.message, 36);
-  const { pills, rowCount } = flowPills(c.traitLabels.map((x) => x.label), 505, 15, 16, 10, 2);
+  const { pills, rowCount } = flowPills(c.traitLabels.map((x) => x.label), 505, 15, 16, 10, 3);
   const pillsY = msgY + (msgLines.length - 1) * lineH + 40;
-  const senderY = pillsY + rowCount * 48 + 44;
+  // Keep the sender clear of the footer line on long cards
+  const senderY = Math.max(pillsY + rowCount * 48 + 24, Math.min(pillsY + rowCount * 48 + 44, 766));
 
   // Animation steps (all 1 when static)
   const aPhoto = step(animT, 0, 0.55);
